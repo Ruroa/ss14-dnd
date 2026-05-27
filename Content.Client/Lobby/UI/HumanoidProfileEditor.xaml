@@ -237,12 +237,7 @@
                     <BoxContainer Name="JobList" Orientation="Vertical" />
                 </ScrollContainer>
             </BoxContainer>
-            <BoxContainer Margin="10" Orientation="Vertical">
-                <!--  Antags  -->
-                <ScrollContainer VerticalExpand="True">
-                    <BoxContainer Name="AntagList" Orientation="Vertical" />
-                </ScrollContainer>
-            </BoxContainer>
+            <!--  SS14 DND: Antag tab removed from character setup.  -->
             <!--  Starlight - Start  -->
             <!-- <BoxContainer Orientation="Vertical" Margin="10"> -->
             <!--  Traits  -->
