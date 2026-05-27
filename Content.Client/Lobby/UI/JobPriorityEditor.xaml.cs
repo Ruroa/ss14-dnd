@@ -26,6 +26,7 @@ public sealed partial class JobPriorityEditor : BoxContainer
     private readonly IClientPreferencesManager _preferencesManager;
     private readonly IPrototypeManager _prototypeManager;
     private readonly JobRequirementsManager _requirements;
+    private bool _isDirty;
 
     /// <summary>
     /// A dictionary to map Department names / Categories to a box that holds individual job priority selector controls
@@ -63,8 +64,7 @@ public sealed partial class JobPriorityEditor : BoxContainer
 
         ResetButton.OnPressed += args =>
         {
-            SelectedJobPriorities = _preferencesManager.Preferences?.JobPriorities.ShallowClone() ??  new Dictionary<ProtoId<JobPrototype>, JobPriority>();
-            UpdateJobPriorities();
+            LoadJobPriorities();
             CheckDirty();
         };
 
@@ -75,9 +75,34 @@ public sealed partial class JobPriorityEditor : BoxContainer
             CheckDirty();
         };
 
+        LoadJobPriorities();
         RefreshJobs();
     }
 
+    public void LoadJobPriorities()
+    {
+        SelectedJobPriorities = _preferencesManager.Preferences?.JobPriorities.ShallowClone()
+            ?? new Dictionary<ProtoId<JobPrototype>, JobPriority>();
+
+        SelectedJobPriorities = SelectedJobPriorities
+            .Where(kv => kv.Key == CampaignJobId)
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        UpdateJobPriorities();
+        CheckDirty();
+    }
+
+    public bool IsDirty()
+    {
+        return _isDirty;
+    }
+
+    private void SetDirty(bool dirty)
+    {
+        _isDirty = dirty;
+        SaveButton.Disabled = !dirty;
+        ResetButton.Disabled = !dirty;
+    }
 
     /// <summary>
     /// Refreshes all job selectors.
