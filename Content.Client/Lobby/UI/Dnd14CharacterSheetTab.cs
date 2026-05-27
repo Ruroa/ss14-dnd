@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Numerics;
+using Content.Shared.Preferences;
 using Robust.Client.UserInterface;
 using Robust.Client.UserInterface.Controls;
 using Robust.Shared.Utility;
@@ -7,15 +8,17 @@ using Robust.Shared.Utility;
 namespace Content.Client.Lobby.UI;
 
 /// <summary>
-/// First-pass SS14 DND character sheet UI for character creation.
-/// Persistence will be wired into the profile after the tab layout is validated in-game.
+/// SS14 DND character sheet UI for character creation.
+/// Uses the current character slot so different character slots have different sheets.
 /// </summary>
 public sealed class Dnd14CharacterSheetTab : BoxContainer
 {
-    private const int StartingStat = 10;
-    private const int CreationMaxStat = 16;
-    private const int StartingPoints = 8;
-    private const int RequiredTrainedSkills = 3;
+    private static readonly Dictionary<int, Dnd14CharacterSheet> SlotSheets = new();
+
+    private const int StartingStat = Dnd14CharacterSheet.StartingStat;
+    private const int CreationMaxStat = Dnd14CharacterSheet.CreationMaxStat;
+    private const int StartingPoints = Dnd14CharacterSheet.StartingPoints;
+    private const int RequiredTrainedSkills = Dnd14CharacterSheet.RequiredTrainedSkills;
 
     private readonly Label _statusLabel;
     private readonly Label _remainingPointsLabel;
@@ -23,10 +26,13 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
     private readonly LineEdit _backgroundEdit;
     private readonly TextEdit _notesEdit;
     private readonly Button _finalizeButton;
+    private readonly Button _reloadButton;
 
     private readonly Dictionary<string, StatRow> _stats = new();
     private readonly Dictionary<string, SkillRow> _skills = new();
     private bool _finalized;
+    private bool _loading;
+    private int? _loadedSlot;
 
     private readonly (string Id, string Name)[] _statDefinitions =
     {
@@ -51,6 +57,12 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         ("Survival", "Survival", "Perception"),
         ("Stealth", "Stealth", "Agility"),
     };
+
+    public static void UnlockAllCachedSheets()
+    {
+        foreach (var key in SlotSheets.Keys.ToArray())
+            SlotSheets[key] = SlotSheets[key].UnlockedClone();
+    }
 
     public Dnd14CharacterSheetTab()
     {
@@ -90,11 +102,14 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         _remainingPointsLabel = new Label();
         _finalizeRequirementsLabel = new Label();
         _finalizeButton = new Button { Text = "Finalize Sheet" };
+        _reloadButton = new Button { Text = "Load Current Character" };
         _finalizeButton.OnPressed += _ => FinalizeSheet();
+        _reloadButton.OnPressed += _ => LoadFromCurrentCharacter(force: true);
 
         header.AddChild(_statusLabel);
         header.AddChild(new Control { HorizontalExpand = true });
         header.AddChild(_remainingPointsLabel);
+        header.AddChild(_reloadButton);
         header.AddChild(_finalizeButton);
         root.AddChild(header);
         root.AddChild(_finalizeRequirementsLabel);
@@ -110,7 +125,11 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             MinSize = new Vector2(360, 0),
             PlaceHolder = "Example: Ex-security contractor, field medic, station drifter...",
         };
-        _backgroundEdit.OnTextChanged += _ => Refresh();
+        _backgroundEdit.OnTextChanged += _ =>
+        {
+            Refresh();
+            SaveCurrentSheet();
+        };
         topGrid.AddChild(_backgroundEdit);
         root.AddChild(topGrid);
 
@@ -174,6 +193,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             MinSize = new Vector2(520, 140),
             HorizontalExpand = true,
         };
+        _notesEdit.OnTextChanged += _ => SaveCurrentSheet();
         root.AddChild(_notesEdit);
 
         Refresh();
@@ -184,8 +204,103 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         parent.AddChild(new Control { MinSize = new Vector2(0, 14) });
     }
 
+    private HumanoidProfileEditor? FindEditor()
+    {
+        Control? control = this;
+        while (control != null)
+        {
+            if (control is HumanoidProfileEditor editor)
+                return editor;
+
+            control = control.Parent;
+        }
+
+        return null;
+    }
+
+    private void LoadFromCurrentCharacter(bool force = false)
+    {
+        var editor = FindEditor();
+        if (editor?.Profile == null || editor.CharacterSlot == null)
+            return;
+
+        var slot = editor.CharacterSlot.Value;
+        if (!force && _loadedSlot == slot)
+            return;
+
+        if (!SlotSheets.TryGetValue(slot, out var sheet))
+        {
+            sheet = editor.Profile.Dnd14Sheet.Clone();
+            sheet.EnsureValid();
+            SlotSheets[slot] = sheet;
+        }
+
+        ApplySheet(sheet);
+        _loadedSlot = slot;
+    }
+
+    private void ApplySheet(Dnd14CharacterSheet sheet)
+    {
+        _loading = true;
+        sheet.EnsureValid();
+
+        _finalized = sheet.Finalized;
+        _backgroundEdit.Text = sheet.Background;
+        _notesEdit.TextRope = new Rope.Leaf(sheet.Notes);
+
+        _stats["Strength"].Value = sheet.Strength;
+        _stats["Agility"].Value = sheet.Agility;
+        _stats["Endurance"].Value = sheet.Endurance;
+        _stats["Intelligence"].Value = sheet.Intelligence;
+        _stats["Perception"].Value = sheet.Perception;
+        _stats["Social"].Value = sheet.Social;
+
+        foreach (var skill in _skills.Values)
+            skill.Trained = sheet.TrainedSkills.Contains(skill.Id);
+
+        _loading = false;
+        Refresh();
+    }
+
+    private Dnd14CharacterSheet BuildSheet()
+    {
+        var sheet = new Dnd14CharacterSheet
+        {
+            Finalized = _finalized,
+            Background = _backgroundEdit.Text.Trim(),
+            Notes = Rope.Collapse(_notesEdit.TextRope).Trim(),
+            Strength = _stats["Strength"].Value,
+            Agility = _stats["Agility"].Value,
+            Endurance = _stats["Endurance"].Value,
+            Intelligence = _stats["Intelligence"].Value,
+            Perception = _stats["Perception"].Value,
+            Social = _stats["Social"].Value,
+            TrainedSkills = _skills.Values.Where(skill => skill.Trained).Select(skill => skill.Id).ToHashSet(),
+        };
+
+        sheet.EnsureValid();
+        return sheet;
+    }
+
+    private void SaveCurrentSheet()
+    {
+        if (_loading)
+            return;
+
+        var editor = FindEditor();
+        if (editor?.Profile == null || editor.CharacterSlot == null)
+            return;
+
+        var sheet = BuildSheet();
+        SlotSheets[editor.CharacterSlot.Value] = sheet;
+        editor.Profile = editor.Profile.WithDnd14Sheet(sheet);
+        editor.IsDirty = true;
+    }
+
     private void ChangeStat(string id, int delta)
     {
+        LoadFromCurrentCharacter();
+
         if (_finalized)
             return;
 
@@ -199,10 +314,13 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
         row.Value = newValue;
         Refresh();
+        SaveCurrentSheet();
     }
 
     private void ToggleTrained(string id)
     {
+        LoadFromCurrentCharacter();
+
         if (_finalized)
             return;
 
@@ -212,15 +330,19 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
         row.Trained = !row.Trained;
         Refresh();
+        SaveCurrentSheet();
     }
 
     private void FinalizeSheet()
     {
+        LoadFromCurrentCharacter();
+
         if (_finalized || !CanFinalize())
             return;
 
         _finalized = true;
         Refresh();
+        SaveCurrentSheet();
     }
 
     private bool CanFinalize()
@@ -270,6 +392,8 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
     private void Refresh()
     {
+        LoadFromCurrentCharacter();
+
         var remaining = RemainingPoints();
         var trained = TrainedSkillCount();
         _statusLabel.Text = _finalized ? "Status: Finalized" : "Status: Draft";
