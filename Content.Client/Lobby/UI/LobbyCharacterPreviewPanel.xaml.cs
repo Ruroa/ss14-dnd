@@ -24,6 +24,8 @@ namespace Content.Client.Lobby.UI;
 [GenerateTypedNameReferences]
 public sealed partial class LobbyCharacterPreviewPanel : Control
 {
+    private const string CampaignJobId = "Assistant"; // SS14 DND: displayed as Contractor via localization.
+
     [Dependency] private readonly IEntityManager _entManager = default!;
     [Dependency] private readonly IClientPreferencesManager _preferences = default!;
     [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
@@ -104,7 +106,7 @@ public sealed partial class LobbyCharacterPreviewPanel : Control
         // Create the job icons in order
         foreach (var job in DraggableJobTarget.OrderedJobs)
         {
-            if (!job.SetPreference)
+            if (!job.SetPreference || job.ID != CampaignJobId)
                 continue;
             if (!_requirements.IsAllowed(job, null, out _))
                 continue;
@@ -258,7 +260,8 @@ public sealed partial class LobbyCharacterPreviewPanel : Control
 
             foreach (var job in GetTargetControl(prio).GetContainedJobs())
             {
-                result.Add(job, prio);
+                if (job == CampaignJobId)
+                    result.Add(job, prio);
             }
         }
 
@@ -337,14 +340,8 @@ public sealed partial class LobbyCharacterPreviewPanel : Control
                 Margin = new Thickness(0, 0, 10, 0),
             };
 
-            var profileContainer = new BoxContainer
-            {
-                Orientation = BoxContainer.LayoutOrientation.Horizontal,
-            };
-            profileContainer.AddChild(label);
-            profileContainer.AddChild(profilePreview);
-
-            grid.AddChild(profileContainer);
+            grid.AddChild(label);
+            grid.AddChild(profilePreview);
         }
 
         return tooltip;
