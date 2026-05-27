@@ -72,7 +72,7 @@
         </BoxContainer>
         <Control MinHeight="10" />
         <!--  tabContainer  -->
-        <TabContainer Name="TabContainer" VerticalExpand="True">
+        <ui:CampaignTabContainer Name="TabContainer" VerticalExpand="True">
             <BoxContainer Orientation="Vertical">
                 <ScrollContainer VerticalExpand="True">
                     <!--  appearanceList  -->
@@ -238,7 +238,7 @@
                 </ScrollContainer>
             </BoxContainer>
             <BoxContainer Margin="10" Orientation="Vertical" Visible="False">
-                <!--  SS14 DND: hidden placeholder keeps tab indexes stable while hiding Antag options.  -->
+                <!--  SS14 DND: hidden placeholder removed by CampaignTabContainer.  -->
                 <ScrollContainer VerticalExpand="True">
                     <BoxContainer Name="AntagList" Orientation="Vertical" />
                 </ScrollContainer>
@@ -291,7 +291,7 @@
                 </ScrollContainer>
             </BoxContainer>
             <!--  Starlight end  -->
-        </TabContainer>
+        </ui:CampaignTabContainer>
     </BoxContainer>
     <!--  Right side  -->
     <profileEditorControls:ProfilePreview Name="Preview" />
