@@ -220,6 +220,9 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
     private void LoadFromCurrentCharacter(bool force = false)
     {
+        if (_loading)
+            return;
+
         var editor = FindEditor();
         if (editor?.Profile == null || editor.CharacterSlot == null)
             return;
@@ -235,8 +238,8 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             SlotSheets[slot] = sheet;
         }
 
-        ApplySheet(sheet);
         _loadedSlot = slot;
+        ApplySheet(sheet);
     }
 
     private void ApplySheet(Dnd14CharacterSheet sheet)
@@ -392,7 +395,8 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
     private void Refresh()
     {
-        LoadFromCurrentCharacter();
+        if (!_loading)
+            LoadFromCurrentCharacter();
 
         var remaining = RemainingPoints();
         var trained = TrainedSkillCount();
