@@ -40,22 +40,25 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         ("Agility", "Agility"),
         ("Endurance", "Endurance"),
         ("Intelligence", "Intelligence"),
-        ("Perception", "Perception"),
+        ("Wisdom", "Wisdom"),
         ("Social", "Social"),
     };
 
     private readonly (string Id, string Name, string Stat)[] _skillDefinitions =
     {
-        ("Perception", "Perception", "Perception"),
+        ("Perception", "Perception", "Wisdom"),
         ("Investigation", "Investigation", "Intelligence"),
         ("Persuasion", "Persuasion", "Social"),
-        ("Intimidation", "Intimidation", "Social"),
+        ("Deception", "Deception", "Social"),
+        ("Performance", "Performance", "Social"),
+        ("Intimidation", "Intimidation", "Strength"),
         ("Medicine", "Medicine", "Intelligence"),
         ("Engineering", "Engineering", "Intelligence"),
+        ("Technology", "Technology", "Intelligence"),
         ("Science", "Science", "Intelligence"),
-        ("Security", "Security", "Agility"),
-        ("Survival", "Survival", "Perception"),
+        ("Survival", "Survival", "Wisdom"),
         ("Stealth", "Stealth", "Agility"),
+        ("SleightOfHand", "Sleight of Hand", "Agility"),
     };
 
     public static void UnlockAllCachedSheets()
@@ -88,7 +91,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
         root.AddChild(new RichTextLabel
         {
-            Text = "[bold]Character Sheet[/bold]\n[color=gray]Spend 8 core stat points, choose 3 trained skills, add a background, then finalize to lock the sheet.[/color]",
+            Text = "[bold]Character Sheet[/bold]\n[color=gray]Spend 8 core stat points, choose 4 trained skills, add a background, then finalize to lock the sheet.[/color]",
         });
 
         var header = new BoxContainer
@@ -255,7 +258,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         _stats["Agility"].Value = sheet.Agility;
         _stats["Endurance"].Value = sheet.Endurance;
         _stats["Intelligence"].Value = sheet.Intelligence;
-        _stats["Perception"].Value = sheet.Perception;
+        _stats["Wisdom"].Value = sheet.Wisdom;
         _stats["Social"].Value = sheet.Social;
 
         foreach (var skill in _skills.Values)
@@ -276,7 +279,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             Agility = _stats["Agility"].Value,
             Endurance = _stats["Endurance"].Value,
             Intelligence = _stats["Intelligence"].Value,
-            Perception = _stats["Perception"].Value,
+            Wisdom = _stats["Wisdom"].Value,
             Social = _stats["Social"].Value,
             TrainedSkills = _skills.Values.Where(skill => skill.Trained).Select(skill => skill.Id).ToHashSet(),
         };
