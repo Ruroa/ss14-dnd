@@ -11,6 +11,7 @@ public sealed partial class Dnd14CharacterSheet
     public const int CreationMaxStat = 16;
     public const int StartingPoints = 8;
     public const int RequiredTrainedSkills = 4;
+    public const int SkillPointBudget = 4;
 
     public static readonly HashSet<string> ValidSkillIds = new()
     {
@@ -66,6 +67,9 @@ public sealed partial class Dnd14CharacterSheet
     [DataField]
     public HashSet<string> TrainedSkills { get; set; } = new();
 
+    [DataField]
+    public HashSet<string> MasteredSkills { get; set; } = new();
+
     public static Dnd14CharacterSheet Default() => new();
 
     public Dnd14CharacterSheet Clone()
@@ -84,6 +88,7 @@ public sealed partial class Dnd14CharacterSheet
             Wisdom = Wisdom,
             Social = Social,
             TrainedSkills = new HashSet<string>(TrainedSkills),
+            MasteredSkills = new HashSet<string>(MasteredSkills),
         };
     }
 
@@ -110,7 +115,8 @@ public sealed partial class Dnd14CharacterSheet
                && Intelligence == other.Intelligence
                && Wisdom == other.Wisdom
                && Social == other.Social
-               && TrainedSkills.SetEquals(other.TrainedSkills);
+               && TrainedSkills.SetEquals(other.TrainedSkills)
+               && MasteredSkills.SetEquals(other.MasteredSkills);
     }
 
     public void EnsureValid()
@@ -126,10 +132,23 @@ public sealed partial class Dnd14CharacterSheet
         Wisdom = Math.Clamp(Wisdom, StartingStat, CreationMaxStat);
         Social = Math.Clamp(Social, StartingStat, CreationMaxStat);
         TrainedSkills ??= new HashSet<string>();
+        MasteredSkills ??= new HashSet<string>();
 
-        TrainedSkills = TrainedSkills
-            .Where(ValidSkillIds.Contains)
-            .Take(RequiredTrainedSkills)
-            .ToHashSet();
+        TrainedSkills = TrainedSkills.Where(ValidSkillIds.Contains).ToHashSet();
+        MasteredSkills = MasteredSkills.Where(ValidSkillIds.Contains).ToHashSet();
+
+        // Mastery replaces proficiency/training. A skill may not be in both sets.
+        TrainedSkills.ExceptWith(MasteredSkills);
+
+        while (SkillPointsSpent() > SkillPointBudget && TrainedSkills.Count > 0)
+            TrainedSkills.Remove(TrainedSkills.Last());
+
+        while (SkillPointsSpent() > SkillPointBudget && MasteredSkills.Count > 0)
+            MasteredSkills.Remove(MasteredSkills.Last());
+    }
+
+    public int SkillPointsSpent()
+    {
+        return TrainedSkills.Count + MasteredSkills.Count * 2;
     }
 }
