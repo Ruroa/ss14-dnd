@@ -243,7 +243,7 @@
                     <BoxContainer Name="AntagList" Orientation="Vertical" />
                 </ScrollContainer>
             </BoxContainer>
-            <ui:Dnd14CharacterSheetTab />
+            <ui:Dnd14CharacterSheetTab Name="Dnd14Sheet" />
             <!--  Starlight - Start  -->
             <!-- <BoxContainer Orientation="Vertical" Margin="10"> -->
             <!--  Traits  -->
