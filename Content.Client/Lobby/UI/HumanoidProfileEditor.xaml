@@ -71,6 +71,8 @@
             </BoxContainer>
         </BoxContainer>
         <Control MinHeight="10" />
+        <!-- SS14 DND: keep a hidden backing control for existing code-behind references; no Antags tab is shown. -->
+        <BoxContainer Name="AntagList" Orientation="Vertical" Visible="False" />
         <!--  tabContainer  -->
         <TabContainer Name="TabContainer" VerticalExpand="True">
             <BoxContainer Orientation="Vertical">
