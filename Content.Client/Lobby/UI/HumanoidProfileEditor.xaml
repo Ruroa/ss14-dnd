@@ -71,8 +71,6 @@
             </BoxContainer>
         </BoxContainer>
         <Control MinHeight="10" />
-        <!-- SS14 DND: keep a hidden backing control for existing code-behind references; no Antags tab is shown. -->
-        <BoxContainer Name="AntagList" Orientation="Vertical" Visible="False" />
         <!--  tabContainer  -->
         <TabContainer Name="TabContainer" VerticalExpand="True">
             <BoxContainer Orientation="Vertical">
@@ -239,7 +237,12 @@
                     <BoxContainer Name="JobList" Orientation="Vertical" />
                 </ScrollContainer>
             </BoxContainer>
-            <!--  SS14 DND: Antag tab removed from character setup.  -->
+            <BoxContainer Margin="10" Orientation="Vertical" Visible="False">
+                <!--  SS14 DND: hidden placeholder keeps tab indexes stable while hiding Antag options.  -->
+                <ScrollContainer VerticalExpand="True">
+                    <BoxContainer Name="AntagList" Orientation="Vertical" />
+                </ScrollContainer>
+            </BoxContainer>
             <!--  Starlight - Start  -->
             <!-- <BoxContainer Orientation="Vertical" Margin="10"> -->
             <!--  Traits  -->
