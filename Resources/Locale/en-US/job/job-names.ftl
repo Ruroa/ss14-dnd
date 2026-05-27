@@ -50,9 +50,6 @@ job-name-technical-assistant = Technical Assistant
 job-name-visitor = Visitor
 job-name-warden = Warden
 
-# SS14 DND campaign role
-job-name-assistant = Contractor
-
 # unused jobs
 # these are required for the agent ID job icon tooltips
 # I am keeping them for roleplaying opportunities
