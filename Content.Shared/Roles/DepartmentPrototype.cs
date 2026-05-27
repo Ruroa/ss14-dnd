@@ -5,20 +5,28 @@ namespace Content.Shared.Roles;
 [Prototype]
 public sealed partial class DepartmentPrototype : IPrototype
 {
+    private const string CampaignJobId = "Assistant"; // SS14 DND: displayed to players as Contractor.
+    private const string CampaignDepartmentName = "department-main-role";
+    private const string CampaignDepartmentDescription = "department-main-role-description";
+
     [IdDataField]
     public string ID { get; private set; } = string.Empty;
 
     /// <summary>
     /// The name LocId of the department that will be displayed in the various menus.
     /// </summary>
-    [DataField(required: true)]
-    public LocId Name = string.Empty;
+    [DataField("name", required: true)]
+    private LocId _name = string.Empty;
+
+    public LocId Name => IsCampaignDepartment ? CampaignDepartmentName : _name;
 
     /// <summary>
     /// A description LocId to display in the character menu as an explanation of the department's function.
     /// </summary>
-    [DataField(required: true)]
-    public LocId Description = string.Empty;
+    [DataField("description", required: true)]
+    private LocId _description = string.Empty;
+
+    public LocId Description => IsCampaignDepartment ? CampaignDepartmentDescription : _description;
 
     /// <summary>
     /// A color representing this department to use for text.
@@ -45,8 +53,12 @@ public sealed partial class DepartmentPrototype : IPrototype
     /// <summary>
     /// Toggles the display of the department in the priority setting menu in the character editor.
     /// </summary>
-    [DataField]
-    public bool EditorHidden;
+    [DataField("editorHidden")]
+    private bool _editorHidden;
+
+    public bool EditorHidden => _editorHidden || !IsCampaignDepartment;
+
+    private bool IsCampaignDepartment => Roles.Contains(CampaignJobId);
 }
 
 /// <summary>
