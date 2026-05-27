@@ -260,8 +260,8 @@ public sealed partial class LobbyCharacterPreviewPanel : Control
 
             foreach (var job in GetTargetControl(prio).GetContainedJobs())
             {
-                if (job == CampaignJobId)
-                    result.Add(job, prio);
+                if (job.ID == CampaignJobId)
+                    result.Add(job.ID, prio);
             }
         }
 
