@@ -14,6 +14,8 @@ public sealed partial class LoadoutGroupPrototype : IPrototype, IInheritingProto
     {
         "LeftRipperArm",
         "RightMechwrightArm",
+        "LeftCargoLeg",
+        "RightCargoLeg",
     };
 
     [IdDataField]
