@@ -1,7 +1,10 @@
+using Content.Server.Preferences.Managers;
 using Content.Server.Spawners.EntitySystems;
 using Content.Server.Station.Systems;
 using Content.Shared.DND14;
 using Content.Shared.Humanoid;
+using Content.Shared.Preferences;
+using Robust.Shared.Player;
 
 namespace Content.Server.DND14;
 
@@ -12,10 +15,14 @@ namespace Content.Server.DND14;
 /// </summary>
 public sealed class Dnd14CharacterSheetSystem : EntitySystem
 {
+    [Dependency] private readonly IPlayerManager _playerManager = default!;
+    [Dependency] private readonly IServerPreferencesManager _preferences = default!;
+
     private float _fallbackTimer;
 
     public override void Initialize()
     {
+        base.Initialize();
         SubscribeLocalEvent<PlayerSpawningEvent>(OnPlayerSpawning, after: [typeof(SpawnPointSystem)]);
     }
 
@@ -29,6 +36,7 @@ public sealed class Dnd14CharacterSheetSystem : EntitySystem
 
         _fallbackTimer = 1f;
         EnsureDefaultSheetsOnHumanoids();
+        EnsureSheetsOnAttachedPlayerMobs();
     }
 
     private void EnsureDefaultSheetsOnHumanoids()
@@ -42,6 +50,92 @@ public sealed class Dnd14CharacterSheetSystem : EntitySystem
             var comp = EnsureComp<Dnd14CharacterSheetComponent>(uid);
             Dirty(uid, comp);
         }
+    }
+
+    private void EnsureSheetsOnAttachedPlayerMobs()
+    {
+        foreach (var session in _playerManager.Sessions)
+        {
+            var attached = session.AttachedEntity;
+            if (attached == null || !Exists(attached.Value))
+                continue;
+
+            if (!HasComp<HumanoidAppearanceComponent>(attached.Value))
+                continue;
+
+            var comp = EnsureComp<Dnd14CharacterSheetComponent>(attached.Value);
+            if (!IsDefaultSheet(comp))
+                continue;
+
+            if (!TryGetPreferredSheet(session, out var sheet))
+                continue;
+
+            comp.LoadFromSheet(sheet);
+            Dirty(attached.Value, comp);
+        }
+    }
+
+    private bool TryGetPreferredSheet(ICommonSession session, out Dnd14CharacterSheet sheet)
+    {
+        sheet = Dnd14CharacterSheet.Default();
+
+        var preferences = _preferences.GetPreferencesOrNull(session.UserId);
+        if (preferences == null)
+            return false;
+
+        foreach (var (_, profile) in preferences.Characters.OrderBy(pair => pair.Key))
+        {
+            if (profile is not HumanoidCharacterProfile humanoid)
+                continue;
+
+            if (!humanoid.Enabled)
+                continue;
+
+            var candidate = humanoid.Dnd14Sheet.Clone();
+            candidate.EnsureValid();
+
+            if (!IsNonDefaultSheet(candidate))
+                continue;
+
+            sheet = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsDefaultSheet(Dnd14CharacterSheetComponent sheet)
+    {
+        return !sheet.Finalized
+               && sheet.Level == 1
+               && sheet.Experience == 0
+               && string.IsNullOrWhiteSpace(sheet.Background)
+               && string.IsNullOrWhiteSpace(sheet.Notes)
+               && sheet.Strength == Dnd14CharacterSheet.StartingStat
+               && sheet.Agility == Dnd14CharacterSheet.StartingStat
+               && sheet.Endurance == Dnd14CharacterSheet.StartingStat
+               && sheet.Intelligence == Dnd14CharacterSheet.StartingStat
+               && sheet.Wisdom == Dnd14CharacterSheet.StartingStat
+               && sheet.Social == Dnd14CharacterSheet.StartingStat
+               && sheet.TrainedSkills.Count == 0
+               && sheet.MasteredSkills.Count == 0;
+    }
+
+    private static bool IsNonDefaultSheet(Dnd14CharacterSheet sheet)
+    {
+        return sheet.Finalized
+               || sheet.Level != 1
+               || sheet.Experience != 0
+               || !string.IsNullOrWhiteSpace(sheet.Background)
+               || !string.IsNullOrWhiteSpace(sheet.Notes)
+               || sheet.Strength != Dnd14CharacterSheet.StartingStat
+               || sheet.Agility != Dnd14CharacterSheet.StartingStat
+               || sheet.Endurance != Dnd14CharacterSheet.StartingStat
+               || sheet.Intelligence != Dnd14CharacterSheet.StartingStat
+               || sheet.Wisdom != Dnd14CharacterSheet.StartingStat
+               || sheet.Social != Dnd14CharacterSheet.StartingStat
+               || sheet.TrainedSkills.Count != 0
+               || sheet.MasteredSkills.Count != 0;
     }
 
     private void OnPlayerSpawning(PlayerSpawningEvent args)
