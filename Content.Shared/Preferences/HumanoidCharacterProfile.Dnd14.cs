@@ -1,7 +1,12 @@
+using System.Text;
+
 namespace Content.Shared.Preferences;
 
 public sealed partial class HumanoidCharacterProfile
 {
+    private const string Dnd14StartMarker = "[[DND14_SHEET:";
+    private const string Dnd14EndMarker = "]]";
+
     private static readonly Dictionary<string, Dnd14CharacterSheet> Dnd14SheetCache = new();
 
     private Dnd14CharacterSheet _dnd14Sheet = Dnd14CharacterSheet.Default();
@@ -16,6 +21,14 @@ public sealed partial class HumanoidCharacterProfile
             if (IsNonDefaultDnd14Sheet(_dnd14Sheet))
                 return _dnd14Sheet;
 
+            if (TryReadPackedDnd14Sheet(Secrets, out var packed))
+            {
+                _dnd14Sheet = packed;
+                _dnd14Sheet.EnsureValid();
+                Dnd14SheetCache[Dnd14SheetCacheKey] = _dnd14Sheet;
+                return _dnd14Sheet;
+            }
+
             if (Dnd14SheetCache.TryGetValue(Dnd14SheetCacheKey, out var cached))
                 return cached;
 
@@ -27,7 +40,10 @@ public sealed partial class HumanoidCharacterProfile
             _dnd14Sheet.EnsureValid();
 
             if (IsNonDefaultDnd14Sheet(_dnd14Sheet))
+            {
                 Dnd14SheetCache[Dnd14SheetCacheKey] = _dnd14Sheet;
+                Secrets = WritePackedDnd14Sheet(Secrets, _dnd14Sheet);
+            }
         }
     }
 
@@ -46,6 +62,122 @@ public sealed partial class HumanoidCharacterProfile
                || sheet.Social != Dnd14CharacterSheet.StartingStat
                || sheet.TrainedSkills.Count != 0
                || sheet.MasteredSkills.Count != 0;
+    }
+
+    private static string WritePackedDnd14Sheet(string text, Dnd14CharacterSheet sheet)
+    {
+        text = RemovePackedDnd14Sheet(text ?? string.Empty).TrimEnd();
+        var packed = Convert.ToBase64String(Encoding.UTF8.GetBytes(PackDnd14Sheet(sheet)));
+
+        return string.IsNullOrWhiteSpace(text)
+            ? $"{Dnd14StartMarker}{packed}{Dnd14EndMarker}"
+            : $"{text}\n{Dnd14StartMarker}{packed}{Dnd14EndMarker}";
+    }
+
+    private static string RemovePackedDnd14Sheet(string text)
+    {
+        var start = text.IndexOf(Dnd14StartMarker, StringComparison.Ordinal);
+        if (start < 0)
+            return text;
+
+        var end = text.IndexOf(Dnd14EndMarker, start, StringComparison.Ordinal);
+        if (end < 0)
+            return text[..start];
+
+        end += Dnd14EndMarker.Length;
+        return (text[..start] + text[end..]).TrimEnd();
+    }
+
+    private static bool TryReadPackedDnd14Sheet(string text, out Dnd14CharacterSheet sheet)
+    {
+        sheet = Dnd14CharacterSheet.Default();
+
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        var start = text.IndexOf(Dnd14StartMarker, StringComparison.Ordinal);
+        if (start < 0)
+            return false;
+
+        start += Dnd14StartMarker.Length;
+        var end = text.IndexOf(Dnd14EndMarker, start, StringComparison.Ordinal);
+        if (end < 0)
+            return false;
+
+        try
+        {
+            var packed = text[start..end];
+            var payload = Encoding.UTF8.GetString(Convert.FromBase64String(packed));
+            sheet = UnpackDnd14Sheet(payload);
+            sheet.EnsureValid();
+            return true;
+        }
+        catch
+        {
+            sheet = Dnd14CharacterSheet.Default();
+            return false;
+        }
+    }
+
+    private static string PackText(string text)
+    {
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(text ?? string.Empty));
+    }
+
+    private static string UnpackText(string text)
+    {
+        return Encoding.UTF8.GetString(Convert.FromBase64String(text));
+    }
+
+    private static string PackDnd14Sheet(Dnd14CharacterSheet sheet)
+    {
+        sheet.EnsureValid();
+
+        return string.Join('|',
+            sheet.Finalized ? "1" : "0",
+            sheet.Level.ToString(),
+            sheet.Experience.ToString(),
+            PackText(sheet.Background),
+            PackText(sheet.Notes),
+            sheet.Strength.ToString(),
+            sheet.Agility.ToString(),
+            sheet.Endurance.ToString(),
+            sheet.Intelligence.ToString(),
+            sheet.Wisdom.ToString(),
+            sheet.Social.ToString(),
+            string.Join(',', sheet.TrainedSkills),
+            string.Join(',', sheet.MasteredSkills));
+    }
+
+    private static Dnd14CharacterSheet UnpackDnd14Sheet(string payload)
+    {
+        var parts = payload.Split('|');
+        if (parts.Length < 13)
+            return Dnd14CharacterSheet.Default();
+
+        var sheet = new Dnd14CharacterSheet
+        {
+            Finalized = parts[0] == "1",
+            Level = int.TryParse(parts[1], out var level) ? level : 1,
+            Experience = int.TryParse(parts[2], out var experience) ? experience : 0,
+            Background = UnpackText(parts[3]),
+            Notes = UnpackText(parts[4]),
+            Strength = int.TryParse(parts[5], out var strength) ? strength : Dnd14CharacterSheet.StartingStat,
+            Agility = int.TryParse(parts[6], out var agility) ? agility : Dnd14CharacterSheet.StartingStat,
+            Endurance = int.TryParse(parts[7], out var endurance) ? endurance : Dnd14CharacterSheet.StartingStat,
+            Intelligence = int.TryParse(parts[8], out var intelligence) ? intelligence : Dnd14CharacterSheet.StartingStat,
+            Wisdom = int.TryParse(parts[9], out var wisdom) ? wisdom : Dnd14CharacterSheet.StartingStat,
+            Social = int.TryParse(parts[10], out var social) ? social : Dnd14CharacterSheet.StartingStat,
+            TrainedSkills = parts[11]
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(),
+            MasteredSkills = parts[12]
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(),
+        };
+
+        sheet.EnsureValid();
+        return sheet;
     }
 
     public HumanoidCharacterProfile WithDnd14Sheet(Dnd14CharacterSheet sheet)
