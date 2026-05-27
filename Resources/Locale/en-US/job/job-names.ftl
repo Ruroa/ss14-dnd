@@ -50,6 +50,9 @@ job-name-technical-assistant = Technical Assistant
 job-name-visitor = Visitor
 job-name-warden = Warden
 
+# SS14 DND campaign role
+job-name-assistant = Contractor
+
 # unused jobs
 # these are required for the agent ID job icon tooltips
 # I am keeping them for roleplaying opportunities
@@ -78,54 +81,3 @@ job-title-universal = Universal
 job-title-visitor = Visitor
 
 # Role timers - Make these alphabetical or I cut you
-JobAssistant = Assistant
-JobAtmosphericTechnician = Atmospheric Technician
-JobBartender = Bartender
-JobBorg = Borg
-JobBotanist = Botanist
-JobBrigmedic = Brigmedic
-JobCaptain = Captain
-JobCargoTechnician = Cargo Technician
-JobCentralCommandOfficial = Central Command Official
-JobCentralCommandOperator = CentComm Operator
-JobChaplain = Chaplain
-JobChef = Chef
-JobChemist = Chemist
-JobChiefEngineer = Chief Engineer
-JobChiefMedicalOfficer = Chief Medical Officer
-JobClown = Clown
-JobDetective = Detective
-JobERTChaplain = ERT Chaplain
-JobERTEngineer = ERT Engineer
-JobERTJanitor = ERT Janitor
-JobERTLeader = ERT Leader
-JobERTMedical = ERT Medical
-JobERTSecurity = ERT Security
-JobHeadOfPersonnel = Head of Personnel
-JobHeadOfSecurity = Head of Security
-JobJanitor = Janitor
-JobLawyer = Lawyer
-JobLibrarian = Librarian
-# Starlight: Capitalization
-JobMedicalDoctor = Medical Doctor
-# Starlight: Capitalization
-JobMedicalIntern = Medical Intern
-JobMime = Mime
-JobMusician = Musician
-JobParamedic = Paramedic
-#JobPassenger = Passenger # Starlight - de-passenger
-JobPsychologist = Psychologist
-JobQuartermaster = Quartermaster
-JobReporter = Reporter
-JobResearchAssistant = Research Assistant
-JobResearchDirector = Research Director
-JobSalvageSpecialist = Salvage Specialist
-JobScientist = Scientist
-JobSecurityCadet = Security Cadet
-JobSecurityOfficer = Security Officer
-JobServiceWorker = Service Worker
-JobStationAi = Station AI
-JobStationEngineer = Station Engineer
-JobTechnicalAssistant = Technical Assistant
-JobVisitor = Visitor
-JobWarden = Warden
