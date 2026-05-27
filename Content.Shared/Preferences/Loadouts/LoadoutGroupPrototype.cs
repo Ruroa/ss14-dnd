@@ -9,6 +9,12 @@ namespace Content.Shared.Preferences.Loadouts;
 [Prototype]
 public sealed partial class LoadoutGroupPrototype : IPrototype, IInheritingPrototype
 {
+    private static readonly ProtoId<LoadoutPrototype>[] CampaignHiddenLoadouts =
+    {
+        "LeftRipperArm",
+        "RightMechwrightArm",
+    };
+
     [IdDataField]
     public string ID { get; private set; } = string.Empty;
 
@@ -52,6 +58,10 @@ public sealed partial class LoadoutGroupPrototype : IPrototype, IInheritingProto
     public bool Hidden;
 
     [AlwaysPushInheritance]
-    [DataField(required: true)]
-    public List<ProtoId<LoadoutPrototype>> Loadouts = new();
+    [DataField("loadouts", required: true)]
+    private List<ProtoId<LoadoutPrototype>> _loadouts = new();
+
+    public List<ProtoId<LoadoutPrototype>> Loadouts => _loadouts
+        .Where(loadout => !CampaignHiddenLoadouts.Contains(loadout))
+        .ToList();
 }
