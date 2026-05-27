@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Numerics;
 using Content.Client.Lobby.UI.Roles;
 using Content.Client.Players.PlayTimeTracking;
@@ -21,6 +21,8 @@ namespace Content.Client.Lobby.UI;
 [GenerateTypedNameReferences]
 public sealed partial class JobPriorityEditor : BoxContainer
 {
+    private const string CampaignJobId = "Assistant"; // SS14 DND: displayed as Contractor via localization.
+
     private readonly IClientPreferencesManager _preferencesManager;
     private readonly IPrototypeManager _prototypeManager;
     private readonly JobRequirementsManager _requirements;
@@ -87,6 +89,11 @@ public sealed partial class JobPriorityEditor : BoxContainer
         _jobPriorities.Clear();
         var firstCategory = true;
 
+        // SS14 DND: keep the lobby focused on the single neutral campaign role.
+        SelectedJobPriorities = SelectedJobPriorities
+            .Where(kv => kv.Key == CampaignJobId)
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+
         // Get all displayed departments
         var departments = _prototypeManager.EnumeratePrototypes<DepartmentPrototype>()
             .Where(dep => !dep.EditorHidden)
@@ -147,7 +154,7 @@ public sealed partial class JobPriorityEditor : BoxContainer
             }
 
             var jobs = department.Roles.Select(jobId => _prototypeManager.Index(jobId))
-                .Where(job => job.SetPreference)
+                .Where(job => job.SetPreference && job.ID == CampaignJobId)
                 .ToList();
 
             jobs.Sort(JobUIComparer.Instance);
@@ -219,6 +226,12 @@ public sealed partial class JobPriorityEditor : BoxContainer
                 jobContainer.AddChild(selector);
                 category.AddChild(jobContainer);
             }
+
+            if (!category.Children.Any(child => child is BoxContainer))
+            {
+                JobList.RemoveChild(category);
+                _jobCategories.Remove(department.ID);
+            }
         }
 
         UpdateJobPriorities();
@@ -243,6 +256,10 @@ public sealed partial class JobPriorityEditor : BoxContainer
     {
         // If it equals default then reset the button.
         var savedJobPriorities = _preferencesManager.Preferences?.JobPriorities ?? new Dictionary<ProtoId<JobPrototype>, JobPriority>();
+        savedJobPriorities = savedJobPriorities
+            .Where(kv => kv.Key == CampaignJobId)
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+
         if (!SelectedJobPriorities.Keys.ToHashSet().SetEquals(savedJobPriorities.Keys.ToHashSet()))
         {
             SetDirty(true);
@@ -260,54 +277,4 @@ public sealed partial class JobPriorityEditor : BoxContainer
 
         SetDirty(false);
     }
-
-    /// <summary>
-    /// Private member that should be only set via <see cref="SetDirty"/>
-    /// </summary>
-    private bool _isDirty;
-
-    /// <summary>
-    /// True if the current set of priorities is different from the saved ones.
-    /// Used to determine if the save and reset buttons should be active.
-    /// <seealso cref="_isDirty"/>
-    /// </summary>
-    public bool IsDirty()
-    {
-        return _isDirty;
-    }
-
-    /// <summary>
-    /// Set the dirty state of the Job Priority Editor, will also set the disabled state of the reset and save buttons
-    /// afterwards appropriately
-    /// </summary>
-    /// <param name="value">True if you made a change which makes the current job priorities differ from the saved ones.
-    /// False if you made a change which makes them equal, or if you reset the job priorities or saved them.</param>
-    private void SetDirty(bool value)
-    {
-        if (_isDirty == value)
-            return;
-
-        _isDirty = value;
-        UpdateSaveButton();
-    }
-
-    /// <summary>
-    /// Sets the disabled state of the reset and save buttons according to <see cref="IsDirty"/>.
-    /// </summary>
-    private void UpdateSaveButton()
-    {
-        SaveButton.Disabled = !IsDirty();
-        ResetButton.Disabled = !IsDirty();
-    }
-
-    /// <summary>
-    /// Load the job priorities from the preferences manager into the editor
-    /// </summary>
-    public void LoadJobPriorities()
-    {
-        SelectedJobPriorities = _preferencesManager.Preferences?.JobPriorities.ShallowClone() ??  new Dictionary<ProtoId<JobPrototype>, JobPriority>();
-        UpdateJobPriorities();
-        CheckDirty();
-    }
 }
-
