@@ -5,29 +5,21 @@ namespace Content.Client.Lobby.UI;
 /// <summary>
 /// SS14 DND campaign character setup tab container.
 /// Removes the Antags tab while preserving the existing HumanoidProfileEditor setup code path.
+/// The old Antags tab title slot is reused for the DND14 character sheet tab.
 /// </summary>
 public sealed class CampaignTabContainer : TabContainer
 {
     private const int AntagTabIndex = 2;
-    private const int OriginalSetupLastTabIndex = 7;
-    private const int ChildCountAfterRemovingAntagBeforeDynamicTabs = 7;
     private bool _removedAntagTab;
 
     public new void SetTabTitle(int tab, string title)
     {
         RemoveAntagTabIfNeeded();
 
-        // HumanoidProfileEditor.SetupTabs() still tries to title the old Antags tab.
-        // Skip it, then shift the remaining original editor tab titles left by one.
-        // Dynamic tabs added later, such as Records, already use the post-removal index and must not be shifted.
-        if (ChildCount == ChildCountAfterRemovingAntagBeforeDynamicTabs && tab <= OriginalSetupLastTabIndex)
-        {
-            if (tab == AntagTabIndex)
-                return;
-
-            if (tab > AntagTabIndex)
-                tab--;
-        }
+        // HumanoidProfileEditor.SetupTabs() still tries to title the old Antags tab at index 2.
+        // After removing that hidden placeholder, index 2 is our new DND14 sheet.
+        if (tab == AntagTabIndex)
+            title = "Character Sheet";
 
         if (tab < 0 || tab >= ChildCount)
             return;
