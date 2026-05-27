@@ -18,7 +18,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
     private const int StartingStat = Dnd14CharacterSheet.StartingStat;
     private const int CreationMaxStat = Dnd14CharacterSheet.CreationMaxStat;
     private const int StartingPoints = Dnd14CharacterSheet.StartingPoints;
-    private const int RequiredTrainedSkills = Dnd14CharacterSheet.RequiredTrainedSkills;
+    private const int SkillPointBudget = Dnd14CharacterSheet.SkillPointBudget;
 
     private readonly Label _statusLabel;
     private readonly Label _remainingPointsLabel;
@@ -91,7 +91,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
         root.AddChild(new RichTextLabel
         {
-            Text = "[bold]Character Sheet[/bold]\n[color=gray]Spend 8 core stat points, choose 4 trained skills, add a background, then finalize to lock the sheet.[/color]",
+            Text = "[bold]Character Sheet[/bold]\n[color=gray]Spend 8 core stat points, spend 4 skill points, add a background, then finalize to lock the sheet. Proficiency costs 1 point and gives +2. Mastery costs 2 points and gives +4.[/color]",
         });
 
         var header = new BoxContainer
@@ -164,13 +164,14 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         root.AddChild(statsGrid);
 
         AddSpacer(root);
-        root.AddChild(new RichTextLabel { Text = $"[bold]Skills[/bold]\n[color=gray]Choose exactly {RequiredTrainedSkills}. Trained skills get +2.[/color]" });
+        root.AddChild(new RichTextLabel { Text = $"[bold]Skills[/bold]\n[color=gray]Spend exactly {SkillPointBudget} skill points. Proficiency costs 1 point. Mastery costs 2 points and replaces proficiency.[/color]" });
 
-        var skillsGrid = new GridContainer { Columns = 5 };
+        var skillsGrid = new GridContainer { Columns = 6 };
         skillsGrid.AddChild(new Label { Text = "Skill" });
         skillsGrid.AddChild(new Label { Text = "Core" });
         skillsGrid.AddChild(new Label { Text = "Mod" });
-        skillsGrid.AddChild(new Label { Text = "Trained" });
+        skillsGrid.AddChild(new Label { Text = "Prof" });
+        skillsGrid.AddChild(new Label { Text = "Mastery" });
         skillsGrid.AddChild(new Label { Text = "Total" });
 
         foreach (var skill in _skillDefinitions)
@@ -182,9 +183,11 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             skillsGrid.AddChild(new Label { Text = skill.Stat });
             skillsGrid.AddChild(row.ModLabel);
             skillsGrid.AddChild(row.TrainedButton);
+            skillsGrid.AddChild(row.MasteryButton);
             skillsGrid.AddChild(row.TotalLabel);
 
             row.TrainedButton.OnPressed += _ => ToggleTrained(skill.Id);
+            row.MasteryButton.OnPressed += _ => ToggleMastery(skill.Id);
         }
 
         root.AddChild(skillsGrid);
@@ -262,7 +265,10 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         _stats["Social"].Value = sheet.Social;
 
         foreach (var skill in _skills.Values)
+        {
             skill.Trained = sheet.TrainedSkills.Contains(skill.Id);
+            skill.Mastered = sheet.MasteredSkills.Contains(skill.Id);
+        }
 
         _loading = false;
         Refresh();
@@ -282,6 +288,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             Wisdom = _stats["Wisdom"].Value,
             Social = _stats["Social"].Value,
             TrainedSkills = _skills.Values.Where(skill => skill.Trained).Select(skill => skill.Id).ToHashSet(),
+            MasteredSkills = _skills.Values.Where(skill => skill.Mastered).Select(skill => skill.Id).ToHashSet(),
         };
 
         sheet.EnsureValid();
@@ -331,10 +338,35 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             return;
 
         var row = _skills[id];
-        if (!row.Trained && TrainedSkillCount() >= RequiredTrainedSkills)
+        if (row.Mastered)
+            return;
+
+        if (!row.Trained && SkillPointsSpent() + 1 > SkillPointBudget)
             return;
 
         row.Trained = !row.Trained;
+        Refresh();
+        SaveCurrentSheet();
+    }
+
+    private void ToggleMastery(string id)
+    {
+        LoadFromCurrentCharacter();
+
+        if (_finalized)
+            return;
+
+        var row = _skills[id];
+        var currentCost = row.Mastered ? 2 : row.Trained ? 1 : 0;
+        var newCost = row.Mastered ? 0 : 2;
+
+        if (SkillPointsSpent() - currentCost + newCost > SkillPointBudget)
+            return;
+
+        row.Mastered = !row.Mastered;
+        if (row.Mastered)
+            row.Trained = false;
+
         Refresh();
         SaveCurrentSheet();
     }
@@ -354,7 +386,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
     private bool CanFinalize()
     {
         return RemainingPoints() == 0
-               && TrainedSkillCount() == RequiredTrainedSkills
+               && SkillPointsSpent() == SkillPointBudget
                && !string.IsNullOrWhiteSpace(_backgroundEdit.Text);
     }
 
@@ -366,8 +398,8 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         var missing = new List<string>();
         if (RemainingPoints() != 0)
             missing.Add($"spend all stat points ({RemainingPoints()} left)");
-        if (TrainedSkillCount() != RequiredTrainedSkills)
-            missing.Add($"choose {RequiredTrainedSkills} trained skills ({TrainedSkillCount()}/{RequiredTrainedSkills})");
+        if (SkillPointsSpent() != SkillPointBudget)
+            missing.Add($"spend {SkillPointBudget} skill points ({SkillPointsSpent()}/{SkillPointBudget})");
         if (string.IsNullOrWhiteSpace(_backgroundEdit.Text))
             missing.Add("fill Background");
 
@@ -381,9 +413,9 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         return StartingPoints - _stats.Values.Sum(stat => stat.Value - StartingStat);
     }
 
-    private int TrainedSkillCount()
+    private int SkillPointsSpent()
     {
-        return _skills.Values.Count(skill => skill.Trained);
+        return _skills.Values.Sum(skill => (skill.Trained ? 1 : 0) + (skill.Mastered ? 2 : 0));
     }
 
     private static int Modifier(int stat)
@@ -402,9 +434,9 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             LoadFromCurrentCharacter();
 
         var remaining = RemainingPoints();
-        var trained = TrainedSkillCount();
+        var skillPoints = SkillPointsSpent();
         _statusLabel.Text = _finalized ? "Status: Finalized" : "Status: Draft";
-        _remainingPointsLabel.Text = $"Points: {remaining} | Skills: {trained}/{RequiredTrainedSkills}";
+        _remainingPointsLabel.Text = $"Points: {remaining} | Skills: {skillPoints}/{SkillPointBudget}";
         _finalizeRequirementsLabel.Text = GetFinalizeRequirementText();
 
         foreach (var row in _stats.Values)
@@ -419,12 +451,15 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         foreach (var row in _skills.Values)
         {
             var statMod = Modifier(_stats[row.Stat].Value);
-            var total = statMod + (row.Trained ? 2 : 0);
+            var total = statMod + (row.Mastered ? 4 : row.Trained ? 2 : 0);
             row.ModLabel.Text = Signed(statMod);
             row.TotalLabel.Text = Signed(total);
             row.TrainedButton.Text = row.Trained ? "Yes" : "No";
+            row.MasteryButton.Text = row.Mastered ? "Yes" : "No";
             row.TrainedButton.Pressed = row.Trained;
-            row.TrainedButton.Disabled = _finalized || (!row.Trained && trained >= RequiredTrainedSkills);
+            row.MasteryButton.Pressed = row.Mastered;
+            row.TrainedButton.Disabled = _finalized || row.Mastered || (!row.Trained && skillPoints + 1 > SkillPointBudget);
+            row.MasteryButton.Disabled = _finalized || (!row.Mastered && skillPoints - (row.Trained ? 1 : 0) + 2 > SkillPointBudget);
         }
 
         _backgroundEdit.Editable = !_finalized;
@@ -455,8 +490,10 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         public readonly string Name;
         public readonly string Stat;
         public bool Trained;
+        public bool Mastered;
         public readonly Label ModLabel = new();
         public readonly Button TrainedButton = new() { ToggleMode = true };
+        public readonly Button MasteryButton = new() { ToggleMode = true };
         public readonly Label TotalLabel = new();
 
         public SkillRow(string id, string name, string stat)
