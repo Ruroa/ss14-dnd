@@ -54,18 +54,35 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
     public Dnd14CharacterSheetTab()
     {
         Orientation = LayoutOrientation.Vertical;
-        Margin = new Thickness(10);
+        HorizontalExpand = true;
+        VerticalExpand = true;
 
-        AddChild(new RichTextLabel
+        var scroll = new ScrollContainer
         {
-            Text = "[bold]DND14 Character Sheet[/bold]",
+            HorizontalExpand = true,
+            VerticalExpand = true,
+        };
+
+        var root = new BoxContainer
+        {
+            Orientation = LayoutOrientation.Vertical,
+            HorizontalExpand = true,
+            Margin = new Thickness(10),
+        };
+
+        scroll.AddChild(root);
+        AddChild(scroll);
+
+        root.AddChild(new RichTextLabel
+        {
+            Text = "[bold]Character Sheet[/bold]\n[color=gray]Spend 8 core stat points, choose 3 trained skills, then finalize to lock the sheet.[/color]",
         });
 
         var header = new BoxContainer
         {
             Orientation = LayoutOrientation.Horizontal,
             SeparationOverride = 8,
-            Margin = new Thickness(0, 6, 0, 6),
+            Margin = new Thickness(0, 8, 0, 8),
         };
 
         _statusLabel = new Label();
@@ -77,7 +94,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         header.AddChild(new Control { HorizontalExpand = true });
         header.AddChild(_remainingPointsLabel);
         header.AddChild(_finalizeButton);
-        AddChild(header);
+        root.AddChild(header);
 
         var topGrid = new GridContainer { Columns = 2 };
         topGrid.AddChild(new Label { Text = "Level" });
@@ -85,12 +102,16 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         topGrid.AddChild(new Label { Text = "XP" });
         topGrid.AddChild(new Label { Text = "0 / 100" });
         topGrid.AddChild(new Label { Text = "Background" });
-        _backgroundEdit = new LineEdit { MinSize = new Vector2(280, 0) };
+        _backgroundEdit = new LineEdit
+        {
+            MinSize = new Vector2(360, 0),
+            PlaceHolder = "Example: Ex-security contractor, field medic, station drifter...",
+        };
         topGrid.AddChild(_backgroundEdit);
-        AddChild(topGrid);
+        root.AddChild(topGrid);
 
-        AddSpacer();
-        AddChild(new Label { Text = "Core Stats" });
+        AddSpacer(root);
+        root.AddChild(new RichTextLabel { Text = "[bold]Core Stats[/bold]" });
 
         var statsGrid = new GridContainer { Columns = 5 };
         statsGrid.AddChild(new Label { Text = "Stat" });
@@ -114,10 +135,10 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             row.PlusButton.OnPressed += _ => ChangeStat(stat.Id, 1);
         }
 
-        AddChild(statsGrid);
+        root.AddChild(statsGrid);
 
-        AddSpacer();
-        AddChild(new Label { Text = $"Skills - choose exactly {RequiredTrainedSkills} trained skills" });
+        AddSpacer(root);
+        root.AddChild(new RichTextLabel { Text = $"[bold]Skills[/bold]\n[color=gray]Choose exactly {RequiredTrainedSkills}. Trained skills get +2.[/color]" });
 
         var skillsGrid = new GridContainer { Columns = 5 };
         skillsGrid.AddChild(new Label { Text = "Skill" });
@@ -140,24 +161,23 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             row.TrainedButton.OnPressed += _ => ToggleTrained(skill.Id);
         }
 
-        AddChild(skillsGrid);
+        root.AddChild(skillsGrid);
 
-        AddSpacer();
-        AddChild(new Label { Text = "Notes" });
+        AddSpacer(root);
+        root.AddChild(new RichTextLabel { Text = "[bold]Notes[/bold]" });
         _notesEdit = new TextEdit
         {
-            MinSize = new Vector2(420, 120),
+            MinSize = new Vector2(520, 140),
             HorizontalExpand = true,
-            VerticalExpand = true,
         };
-        AddChild(_notesEdit);
+        root.AddChild(_notesEdit);
 
         Refresh();
     }
 
-    private void AddSpacer()
+    private static void AddSpacer(BoxContainer parent)
     {
-        AddChild(new Control { MinSize = new Vector2(0, 12) });
+        parent.AddChild(new Control { MinSize = new Vector2(0, 14) });
     }
 
     private void ChangeStat(string id, int delta)
@@ -227,7 +247,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         var remaining = RemainingPoints();
         var trained = TrainedSkillCount();
         _statusLabel.Text = _finalized ? "Status: Finalized" : "Status: Draft";
-        _remainingPointsLabel.Text = $"Remaining points: {remaining} | Trained skills: {trained}/{RequiredTrainedSkills}";
+        _remainingPointsLabel.Text = $"Points: {remaining} | Skills: {trained}/{RequiredTrainedSkills}";
 
         foreach (var row in _stats.Values)
         {
