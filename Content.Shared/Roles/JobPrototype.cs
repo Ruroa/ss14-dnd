@@ -1,4 +1,4 @@
-﻿using Content.Shared.Access;
+using Content.Shared.Access;
 using Content.Shared.Guidebook;
 using Content.Shared.Players.PlayTimeTracking;
 using Content.Shared.StatusIcon;
@@ -13,6 +13,8 @@ namespace Content.Shared.Roles
     [Prototype]
     public sealed partial class JobPrototype : IPrototype
     {
+        private const string CampaignJobId = "Assistant"; // SS14 DND: displayed to players as Contractor.
+
         [ViewVariables]
         [IdDataField]
         public string ID { get; private set; } = default!;
@@ -75,8 +77,10 @@ namespace Content.Shared.Roles
         /// <summary>
         ///     Should this job appear in preferences menu?
         /// </summary>
-        [DataField]
-        public bool SetPreference { get; private set; } = true;
+        [DataField("setPreference")]
+        private bool _setPreference = true;
+
+        public bool SetPreference => _setPreference && ID == CampaignJobId;
 
         /// <summary>
         ///     Should the selected traits be applied for this job?
