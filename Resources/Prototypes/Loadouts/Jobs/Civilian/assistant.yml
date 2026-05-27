@@ -1,5 +1,15 @@
 # Contractor / former Assistant cosmetic loadouts
 # SS14 DND: no playtime locks on Contractor outfit choices.
+# These effect groups are intentionally kept as no-op compatibility prototypes
+# because other visible cosmetic loadouts may still reference them.
+
+- type: loadoutEffectGroup
+  id: HonoredAssistant
+  effects: []
+
+- type: loadoutEffectGroup
+  id: MasterGrey
+  effects: []
 
 # Mask
 - type: loadout
