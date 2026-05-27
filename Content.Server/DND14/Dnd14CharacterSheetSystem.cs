@@ -1,6 +1,6 @@
 using Content.Server.Spawners.EntitySystems;
+using Content.Server.Station.Systems;
 using Content.Shared.DND14;
-using Robust.Shared.Prototypes;
 
 namespace Content.Server.DND14;
 
