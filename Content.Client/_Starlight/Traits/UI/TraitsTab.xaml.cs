@@ -16,6 +16,12 @@ public sealed partial class TraitsTab : BoxContainer
     [Dependency] private readonly IConfigurationManager _cfg = default!;
     [Dependency] private readonly IPrototypeManager _prototype = default!;
 
+    private static readonly HashSet<string> CampaignHiddenCategories = new()
+    {
+        "BackgroundTraits",
+        "EthnicityTraits",
+    };
+
     /// <summary>
     /// Event fired when trait selection changes.
     /// </summary>
@@ -46,6 +52,11 @@ public sealed partial class TraitsTab : BoxContainer
 
         PopulateCategories();
         UpdateGlobalStats();
+    }
+
+    private static bool IsCampaignHiddenCategory(ProtoId<TraitCategoryPrototype> category)
+    {
+        return CampaignHiddenCategories.Contains(category.Id);
     }
 
     private void OnMaxTraitCountChanged(int value)
@@ -82,11 +93,13 @@ public sealed partial class TraitsTab : BoxContainer
         _categoryUis.Clear();
 
         var categories = _prototype.EnumeratePrototypes<TraitCategoryPrototype>()
+            .Where(c => !CampaignHiddenCategories.Contains(c.ID))
             .OrderBy(c => c.Priority)
             .ThenBy(c => Loc.GetString(c.Name))
             .ToList();
 
         var traitsByCategory = _prototype.EnumeratePrototypes<TraitPrototype>()
+            .Where(t => !IsCampaignHiddenCategory(t.Category))
             .GroupBy(t => t.Category)
             .ToDictionary(g => g.Key, g => g.OrderBy(t => Loc.GetString(t.Name)).ToList());
 
@@ -108,6 +121,8 @@ public sealed partial class TraitsTab : BoxContainer
     private void OnTraitToggled(ProtoId<TraitPrototype> traitId, bool selected)
     {
         var trait = _prototype.Index(traitId);
+        if (IsCampaignHiddenCategory(trait.Category))
+            return;
 
         if (selected)
         {
@@ -288,6 +303,9 @@ public sealed partial class TraitsTab : BoxContainer
                 if (!_prototype.TryIndex(traitId, out var trait))
                     continue;
 
+                if (IsCampaignHiddenCategory(trait.Category))
+                    continue;
+
                 _selectedTraits.Add(traitId);
                 _currentTraitCount++;
                 _currentPointsSpent += trait.Cost;
@@ -326,6 +344,9 @@ public sealed partial class TraitsTab : BoxContainer
         foreach (var traitId in traits)
         {
             if (!_prototype.TryIndex(traitId, out var trait))
+                continue;
+
+            if (IsCampaignHiddenCategory(trait.Category))
                 continue;
 
             _selectedTraits.Add(traitId);
