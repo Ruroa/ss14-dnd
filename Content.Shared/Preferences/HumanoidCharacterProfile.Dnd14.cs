@@ -134,20 +134,29 @@ public sealed partial class HumanoidCharacterProfile
     {
         sheet.EnsureValid();
 
-        return string.Join('|',
-            sheet.Finalized ? "1" : "0",
-            sheet.Level.ToString(),
-            sheet.Experience.ToString(),
-            PackText(sheet.Background),
-            PackText(sheet.Notes),
-            sheet.Strength.ToString(),
-            sheet.Agility.ToString(),
-            sheet.Endurance.ToString(),
-            sheet.Intelligence.ToString(),
-            sheet.Wisdom.ToString(),
-            sheet.Social.ToString(),
-            string.Join(',', sheet.TrainedSkills),
-            string.Join(',', sheet.MasteredSkills));
+        var builder = new StringBuilder();
+        AppendPackedPart(builder, sheet.Finalized ? "1" : "0");
+        AppendPackedPart(builder, sheet.Level.ToString());
+        AppendPackedPart(builder, sheet.Experience.ToString());
+        AppendPackedPart(builder, PackText(sheet.Background));
+        AppendPackedPart(builder, PackText(sheet.Notes));
+        AppendPackedPart(builder, sheet.Strength.ToString());
+        AppendPackedPart(builder, sheet.Agility.ToString());
+        AppendPackedPart(builder, sheet.Endurance.ToString());
+        AppendPackedPart(builder, sheet.Intelligence.ToString());
+        AppendPackedPart(builder, sheet.Wisdom.ToString());
+        AppendPackedPart(builder, sheet.Social.ToString());
+        AppendPackedPart(builder, string.Join(',', sheet.TrainedSkills));
+        AppendPackedPart(builder, string.Join(',', sheet.MasteredSkills));
+        return builder.ToString();
+    }
+
+    private static void AppendPackedPart(StringBuilder builder, string value)
+    {
+        if (builder.Length > 0)
+            builder.Append('|');
+
+        builder.Append(value);
     }
 
     private static Dnd14CharacterSheet UnpackDnd14Sheet(string payload)
