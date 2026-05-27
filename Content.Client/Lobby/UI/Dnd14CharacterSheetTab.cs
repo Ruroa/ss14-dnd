@@ -19,6 +19,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
     private readonly Label _statusLabel;
     private readonly Label _remainingPointsLabel;
+    private readonly Label _finalizeRequirementsLabel;
     private readonly LineEdit _backgroundEdit;
     private readonly TextEdit _notesEdit;
     private readonly Button _finalizeButton;
@@ -34,15 +35,15 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         ("Endurance", "Endurance"),
         ("Intelligence", "Intelligence"),
         ("Perception", "Perception"),
-        ("Presence", "Presence"),
+        ("Social", "Social"),
     };
 
     private readonly (string Id, string Name, string Stat)[] _skillDefinitions =
     {
         ("Perception", "Perception", "Perception"),
         ("Investigation", "Investigation", "Intelligence"),
-        ("Persuasion", "Persuasion", "Presence"),
-        ("Intimidation", "Intimidation", "Presence"),
+        ("Persuasion", "Persuasion", "Social"),
+        ("Intimidation", "Intimidation", "Social"),
         ("Medicine", "Medicine", "Intelligence"),
         ("Engineering", "Engineering", "Intelligence"),
         ("Science", "Science", "Intelligence"),
@@ -75,18 +76,19 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
         root.AddChild(new RichTextLabel
         {
-            Text = "[bold]Character Sheet[/bold]\n[color=gray]Spend 8 core stat points, choose 3 trained skills, then finalize to lock the sheet.[/color]",
+            Text = "[bold]Character Sheet[/bold]\n[color=gray]Spend 8 core stat points, choose 3 trained skills, add a background, then finalize to lock the sheet.[/color]",
         });
 
         var header = new BoxContainer
         {
             Orientation = LayoutOrientation.Horizontal,
             SeparationOverride = 8,
-            Margin = new Thickness(0, 8, 0, 8),
+            Margin = new Thickness(0, 8, 0, 4),
         };
 
         _statusLabel = new Label();
         _remainingPointsLabel = new Label();
+        _finalizeRequirementsLabel = new Label();
         _finalizeButton = new Button { Text = "Finalize Sheet" };
         _finalizeButton.OnPressed += _ => FinalizeSheet();
 
@@ -95,6 +97,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         header.AddChild(_remainingPointsLabel);
         header.AddChild(_finalizeButton);
         root.AddChild(header);
+        root.AddChild(_finalizeRequirementsLabel);
 
         var topGrid = new GridContainer { Columns = 2 };
         topGrid.AddChild(new Label { Text = "Level" });
@@ -107,6 +110,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             MinSize = new Vector2(360, 0),
             PlaceHolder = "Example: Ex-security contractor, field medic, station drifter...",
         };
+        _backgroundEdit.OnTextChanged += _ => Refresh();
         topGrid.AddChild(_backgroundEdit);
         root.AddChild(topGrid);
 
@@ -212,14 +216,36 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
     private void FinalizeSheet()
     {
-        if (_finalized)
-            return;
-
-        if (RemainingPoints() != 0 || TrainedSkillCount() != RequiredTrainedSkills || string.IsNullOrWhiteSpace(_backgroundEdit.Text))
+        if (_finalized || !CanFinalize())
             return;
 
         _finalized = true;
         Refresh();
+    }
+
+    private bool CanFinalize()
+    {
+        return RemainingPoints() == 0
+               && TrainedSkillCount() == RequiredTrainedSkills
+               && !string.IsNullOrWhiteSpace(_backgroundEdit.Text);
+    }
+
+    private string GetFinalizeRequirementText()
+    {
+        if (_finalized)
+            return "Sheet finalized. Editing is locked.";
+
+        var missing = new List<string>();
+        if (RemainingPoints() != 0)
+            missing.Add($"spend all stat points ({RemainingPoints()} left)");
+        if (TrainedSkillCount() != RequiredTrainedSkills)
+            missing.Add($"choose {RequiredTrainedSkills} trained skills ({TrainedSkillCount()}/{RequiredTrainedSkills})");
+        if (string.IsNullOrWhiteSpace(_backgroundEdit.Text))
+            missing.Add("fill Background");
+
+        return missing.Count == 0
+            ? "Ready to finalize. This will lock the sheet."
+            : $"Finalize requires: {string.Join(", ", missing)}.";
     }
 
     private int RemainingPoints()
@@ -248,6 +274,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         var trained = TrainedSkillCount();
         _statusLabel.Text = _finalized ? "Status: Finalized" : "Status: Draft";
         _remainingPointsLabel.Text = $"Points: {remaining} | Skills: {trained}/{RequiredTrainedSkills}";
+        _finalizeRequirementsLabel.Text = GetFinalizeRequirementText();
 
         foreach (var row in _stats.Values)
         {
@@ -271,7 +298,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
         _backgroundEdit.Editable = !_finalized;
         _notesEdit.Editable = !_finalized;
-        _finalizeButton.Disabled = _finalized || remaining != 0 || trained != RequiredTrainedSkills || string.IsNullOrWhiteSpace(_backgroundEdit.Text);
+        _finalizeButton.Disabled = _finalized || !CanFinalize();
     }
 
     private sealed class StatRow
