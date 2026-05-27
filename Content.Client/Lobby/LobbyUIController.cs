@@ -234,13 +234,36 @@ public sealed class LobbyUIController : UIController, IOnStateEntered<LobbyState
             return;
 
         var fixedProfile = EditedProfile.Clone();
-        if(_preferencesManager.Preferences!.TryGetHumanoidInSlot(EditedSlot.Value, out var humanoid))
-            fixedProfile = new HumanoidCharacterProfile(EditedProfile) { Enabled = humanoid.Enabled };
+
+        if (TryGetCachedDnd14Sheet(EditedSlot.Value, out var dnd14Sheet))
+            fixedProfile = fixedProfile.WithDnd14Sheet(dnd14Sheet);
+
+        if (_preferencesManager.Preferences!.TryGetHumanoidInSlot(EditedSlot.Value, out var humanoid))
+            fixedProfile = new HumanoidCharacterProfile(fixedProfile) { Enabled = humanoid.Enabled };
 
         _preferencesManager.UpdateCharacter(fixedProfile, EditedSlot.Value);
         OnAnyCharacterOrJobChange?.Invoke();
         _profileEditor?.SetProfile(EditedSlot.Value);
         ReloadCharacterSetup();
+    }
+
+    private static bool TryGetCachedDnd14Sheet(int slot, out Dnd14CharacterSheet sheet)
+    {
+        sheet = Dnd14CharacterSheet.Default();
+
+        var field = typeof(Dnd14CharacterSheetTab).GetField(
+            "SlotSheets",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        if (field?.GetValue(null) is not Dictionary<int, Dnd14CharacterSheet> sheets)
+            return false;
+
+        if (!sheets.TryGetValue(slot, out var cached))
+            return false;
+
+        sheet = cached.Clone();
+        sheet.EnsureValid();
+        return true;
     }
 
     private void CloseProfileEditor()
