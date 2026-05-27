@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Numerics;
 using Robust.Client.UserInterface;
 using Robust.Client.UserInterface.Controls;
 using Robust.Shared.Utility;
@@ -88,7 +89,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         topGrid.AddChild(_backgroundEdit);
         AddChild(topGrid);
 
-        AddChild(new HSeparator { Margin = new Thickness(0, 8, 0, 8) });
+        AddSpacer();
         AddChild(new Label { Text = "Core Stats" });
 
         var statsGrid = new GridContainer { Columns = 5 };
@@ -115,7 +116,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
         AddChild(statsGrid);
 
-        AddChild(new HSeparator { Margin = new Thickness(0, 8, 0, 8) });
+        AddSpacer();
         AddChild(new Label { Text = $"Skills - choose exactly {RequiredTrainedSkills} trained skills" });
 
         var skillsGrid = new GridContainer { Columns = 5 };
@@ -141,7 +142,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
         AddChild(skillsGrid);
 
-        AddChild(new HSeparator { Margin = new Thickness(0, 8, 0, 8) });
+        AddSpacer();
         AddChild(new Label { Text = "Notes" });
         _notesEdit = new TextEdit
         {
@@ -152,6 +153,11 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         AddChild(_notesEdit);
 
         Refresh();
+    }
+
+    private void AddSpacer()
+    {
+        AddChild(new Control { MinSize = new Vector2(0, 12) });
     }
 
     private void ChangeStat(string id, int delta)
