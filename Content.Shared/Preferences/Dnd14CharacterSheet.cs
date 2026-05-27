@@ -10,7 +10,24 @@ public sealed partial class Dnd14CharacterSheet
     public const int StartingStat = 10;
     public const int CreationMaxStat = 16;
     public const int StartingPoints = 8;
-    public const int RequiredTrainedSkills = 3;
+    public const int RequiredTrainedSkills = 4;
+
+    public static readonly HashSet<string> ValidSkillIds = new()
+    {
+        "Perception",
+        "Investigation",
+        "Persuasion",
+        "Deception",
+        "Performance",
+        "Intimidation",
+        "Medicine",
+        "Engineering",
+        "Technology",
+        "Science",
+        "Survival",
+        "Stealth",
+        "SleightOfHand",
+    };
 
     [DataField]
     public bool Finalized { get; set; }
@@ -39,8 +56,9 @@ public sealed partial class Dnd14CharacterSheet
     [DataField]
     public int Intelligence { get; set; } = StartingStat;
 
-    [DataField]
-    public int Perception { get; set; } = StartingStat;
+    // Serialized as "perception" for compatibility with older saved sheets.
+    [DataField("perception")]
+    public int Wisdom { get; set; } = StartingStat;
 
     [DataField]
     public int Social { get; set; } = StartingStat;
@@ -63,7 +81,7 @@ public sealed partial class Dnd14CharacterSheet
             Agility = Agility,
             Endurance = Endurance,
             Intelligence = Intelligence,
-            Perception = Perception,
+            Wisdom = Wisdom,
             Social = Social,
             TrainedSkills = new HashSet<string>(TrainedSkills),
         };
@@ -90,7 +108,7 @@ public sealed partial class Dnd14CharacterSheet
                && Agility == other.Agility
                && Endurance == other.Endurance
                && Intelligence == other.Intelligence
-               && Perception == other.Perception
+               && Wisdom == other.Wisdom
                && Social == other.Social
                && TrainedSkills.SetEquals(other.TrainedSkills);
     }
@@ -105,11 +123,13 @@ public sealed partial class Dnd14CharacterSheet
         Agility = Math.Clamp(Agility, StartingStat, CreationMaxStat);
         Endurance = Math.Clamp(Endurance, StartingStat, CreationMaxStat);
         Intelligence = Math.Clamp(Intelligence, StartingStat, CreationMaxStat);
-        Perception = Math.Clamp(Perception, StartingStat, CreationMaxStat);
+        Wisdom = Math.Clamp(Wisdom, StartingStat, CreationMaxStat);
         Social = Math.Clamp(Social, StartingStat, CreationMaxStat);
         TrainedSkills ??= new HashSet<string>();
 
-        if (TrainedSkills.Count > RequiredTrainedSkills)
-            TrainedSkills = TrainedSkills.Take(RequiredTrainedSkills).ToHashSet();
+        TrainedSkills = TrainedSkills
+            .Where(ValidSkillIds.Contains)
+            .Take(RequiredTrainedSkills)
+            .ToHashSet();
     }
 }
