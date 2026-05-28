@@ -5,6 +5,7 @@ using Content.Shared.Cargo;
 using Content.Shared.Damage;
 using Content.Shared.Damage.Systems;
 using Content.Shared.DND14;
+using Content.Shared.Popups;
 using Content.Shared.Projectiles;
 using Content.Shared.Weapons.Melee;
 using Content.Shared.Weapons.Ranged;
@@ -65,6 +66,7 @@ public sealed partial class GunSystem : SharedGunSystem
 {
     [Dependency] private readonly PricingSystem _pricing = default!;
     [Dependency] private readonly SharedMapSystem _map = default!;
+    [Dependency] private readonly SharedPopupSystem _popup = default!;
 
 #region Starlight
     [Dependency] private readonly TransformSystem _transform = default!;
@@ -190,6 +192,15 @@ public sealed partial class GunSystem : SharedGunSystem
                         break;
 
                     ApplyDnd14HitChanceToAmmo(ent.Value, gun, user);
+                    if (gun.Comp.Target is { } target && TryDnd14HitscanDodge(ent.Value, target))
+                    {
+                        _popup.PopupEntity("(missed)", target, PopupType.SmallCaution);
+                        Del(ent);
+                        Audio.PlayPredicted(gun.Comp.SoundGunshotModified, gun, user);
+                        fired = true; // Starlight
+                        break;
+                    }
+
                     var hitscanEv = new HitscanTraceEvent
                     {
                         FromCoordinates = fromCoordinates,
@@ -359,6 +370,39 @@ public sealed partial class GunSystem : SharedGunSystem
         var ammoHitChance = EnsureComp<Dnd14HitChanceComponent>(ammoUid);
         ammoHitChance.Modifier += bonus;
         Dirty(ammoUid, ammoHitChance);
+    }
+
+    private bool TryDnd14HitscanDodge(EntityUid shotUid, EntityUid target)
+    {
+        var dodgeChance = GetDnd14DodgeChance(target);
+        var hitChance = GetDnd14HitChanceModifier(shotUid);
+        var finalDodgeChance = Math.Clamp(dodgeChance - hitChance, 0f, 1f);
+
+        return finalDodgeChance > 0f && _rand.Prob(finalDodgeChance);
+    }
+
+    private float GetDnd14DodgeChance(EntityUid target)
+    {
+        var dodgeChance = GetDnd14DodgeChanceModifier(target);
+
+        if (TryComp<Dnd14CharacterSheetComponent>(target, out var targetSheet))
+            dodgeChance += Dnd14AgilitySystem.GetDodgeChanceBonus(targetSheet);
+
+        return dodgeChance;
+    }
+
+    private float GetDnd14HitChanceModifier(EntityUid uid)
+    {
+        return TryComp<Dnd14HitChanceComponent>(uid, out var hitChance)
+            ? hitChance.Modifier
+            : 0f;
+    }
+
+    private float GetDnd14DodgeChanceModifier(EntityUid uid)
+    {
+        return TryComp<Dnd14DodgeChanceComponent>(uid, out var dodgeChance)
+            ? dodgeChance.Modifier
+            : 0f;
     }
 
     /// <summary>
