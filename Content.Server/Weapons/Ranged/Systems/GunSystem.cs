@@ -4,6 +4,7 @@ using Content.Server.Weapons.Ranged.Components;
 using Content.Shared.Cargo;
 using Content.Shared.Damage;
 using Content.Shared.Damage.Systems;
+using Content.Shared.DND14;
 using Content.Shared.Projectiles;
 using Content.Shared.Weapons.Melee;
 using Content.Shared.Weapons.Ranged;
@@ -115,7 +116,8 @@ public sealed partial class GunSystem : SharedGunSystem
         var toMap = TransformSystem.ToMapCoordinates(toCoordinates).Position;
         var mapDirection = toMap - fromMap.Position;
         var mapAngle = mapDirection.ToAngle();
-        var angle = GetRecoilAngle(Timing.CurTime, gun, mapDirection.ToAngle());
+        var handlingModifier = GetAgilityHandlingModifier(user);
+        var angle = GetRecoilAngle(Timing.CurTime, gun, mapDirection.ToAngle(), handlingModifier);
 
         // If applicable, this ensures the projectile is parented to grid on spawn, instead of the map.
         var fromEnt = MapManager.TryFindGridAt(fromMap, out var gridUid, out _)
@@ -239,9 +241,10 @@ public sealed partial class GunSystem : SharedGunSystem
             {
                 var spreadEvent = new GunGetAmmoSpreadEvent(ammoSpreadComp.Spread);
                 RaiseLocalEvent(gun, ref spreadEvent);
+                var agilitySpread = new Angle(spreadEvent.Spread.Theta * handlingModifier);
 
-                var angles = LinearSpread(mapAngle - spreadEvent.Spread / 2,
-                    mapAngle + spreadEvent.Spread / 2, ammoSpreadComp.Count);
+                var angles = LinearSpread(mapAngle - agilitySpread / 2,
+                    mapAngle + agilitySpread / 2, ammoSpreadComp.Count);
                 // Startlight-edit: start
                 if (isMechShooter)
                 {
@@ -321,6 +324,14 @@ public sealed partial class GunSystem : SharedGunSystem
         ShootProjectile(uid, mapDirection, gunVelocity, gun, user, gun.Comp.ProjectileSpeedModified);
     }
 
+    private float GetAgilityHandlingModifier(EntityUid? user)
+    {
+        if (user == null || !TryComp<Dnd14CharacterSheetComponent>(user.Value, out var sheet))
+            return 1f;
+
+        return Dnd14AgilitySystem.GetHandlingModifier(sheet);
+    }
+
     /// <summary>
     /// Gets a linear spread of angles between start and end.
     /// </summary>
@@ -361,10 +372,10 @@ public sealed partial class GunSystem : SharedGunSystem
         return angles;
     }
 
-    private Angle GetRecoilAngle(TimeSpan curTime, GunComponent component, Angle direction)
+    private Angle GetRecoilAngle(TimeSpan curTime, GunComponent component, Angle direction, float handlingModifier)
     {
         var timeSinceLastFire = (curTime - component.LastFire).TotalSeconds;
-        var newTheta = MathHelper.Clamp(component.CurrentAngle.Theta + component.AngleIncreaseModified.Theta - component.AngleDecayModified.Theta * timeSinceLastFire, component.MinAngleModified.Theta, component.MaxAngleModified.Theta);
+        var newTheta = MathHelper.Clamp(component.CurrentAngle.Theta + component.AngleIncreaseModified.Theta * handlingModifier - component.AngleDecayModified.Theta * timeSinceLastFire, component.MinAngleModified.Theta, component.MaxAngleModified.Theta * handlingModifier);
         component.CurrentAngle = new Angle(newTheta);
         component.LastFire = component.NextFire;
 
