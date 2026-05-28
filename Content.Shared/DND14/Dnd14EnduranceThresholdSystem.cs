@@ -20,19 +20,7 @@ public sealed class Dnd14EnduranceThresholdSystem : EntitySystem
     public override void Initialize()
     {
         base.Initialize();
-        SubscribeLocalEvent<Dnd14CharacterSheetComponent, ComponentStartup>(OnSheetStartup);
-        SubscribeLocalEvent<Dnd14CharacterSheetComponent, MapInitEvent>(OnSheetMapInit);
         SubscribeLocalEvent<Dnd14CharacterSheetComponent, MobThresholdChecked>(OnMobThresholdChecked);
-    }
-
-    private void OnSheetStartup(EntityUid uid, Dnd14CharacterSheetComponent component, ComponentStartup args)
-    {
-        ApplyEnduranceThresholds(uid, component);
-    }
-
-    private void OnSheetMapInit(EntityUid uid, Dnd14CharacterSheetComponent component, MapInitEvent args)
-    {
-        ApplyEnduranceThresholds(uid, component);
     }
 
     private void OnMobThresholdChecked(EntityUid uid, Dnd14CharacterSheetComponent component, ref MobThresholdChecked args)
