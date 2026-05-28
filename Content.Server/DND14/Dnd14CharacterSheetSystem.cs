@@ -19,6 +19,7 @@ public sealed class Dnd14CharacterSheetSystem : EntitySystem
 {
     [Dependency] private readonly IPlayerManager _playerManager = default!;
     [Dependency] private readonly IServerPreferencesManager _preferences = default!;
+    [Dependency] private readonly Dnd14EnduranceThresholdSystem _endurance = default!;
 
     private float _fallbackTimer;
 
@@ -51,6 +52,7 @@ public sealed class Dnd14CharacterSheetSystem : EntitySystem
 
             var comp = EnsureComp<Dnd14CharacterSheetComponent>(uid);
             Dirty(uid, comp);
+            _endurance.ApplyEnduranceThresholds(uid, comp);
         }
     }
 
@@ -62,18 +64,19 @@ public sealed class Dnd14CharacterSheetSystem : EntitySystem
             if (attached == null || !Exists(attached.Value))
                 continue;
 
-            if (!HasComp<HumanoidAppearanceComponent>(attached.Value))
-                continue;
-
             var comp = EnsureComp<Dnd14CharacterSheetComponent>(attached.Value);
             if (!IsDefaultSheet(comp))
+            {
+                _endurance.ApplyEnduranceThresholds(attached.Value, comp);
                 continue;
+            }
 
             if (!TryGetPreferredSheet(session, out var sheet))
                 continue;
 
             comp.LoadFromSheet(sheet);
             Dirty(attached.Value, comp);
+            _endurance.ApplyEnduranceThresholds(attached.Value, comp);
         }
     }
 
@@ -152,5 +155,6 @@ public sealed class Dnd14CharacterSheetSystem : EntitySystem
         var comp = EnsureComp<Dnd14CharacterSheetComponent>(uid);
         comp.LoadFromSheet(sheet);
         Dirty(uid, comp);
+        _endurance.ApplyEnduranceThresholds(uid, comp);
     }
 }
