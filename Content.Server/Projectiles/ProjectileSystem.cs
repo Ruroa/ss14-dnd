@@ -9,6 +9,7 @@ using Content.Shared.Damage.Systems;
 using Content.Shared.Database;
 using Content.Shared.DND14;
 using Content.Shared.FixedPoint;
+using Content.Shared.Popups;
 using Content.Shared.Projectiles;
 using Robust.Shared.Physics.Events;
 using Robust.Shared.Player;
@@ -25,6 +26,7 @@ public sealed class ProjectileSystem : SharedProjectileSystem
     [Dependency] private readonly DestructibleSystem _destructibleSystem = default!;
     [Dependency] private readonly GunSystem _guns = default!;
     [Dependency] private readonly SharedCameraRecoilSystem _sharedCameraRecoil = default!;
+    [Dependency] private readonly SharedPopupSystem _popup = default!;
     [Dependency] private readonly IRobustRandom _random = default!;
     [Dependency] private readonly ScreenshakeSystem _shake = default!; // Starlight | ES Screenshake
 
@@ -55,6 +57,7 @@ public sealed class ProjectileSystem : SharedProjectileSystem
         {
             component.ProjectileSpent = true;
             var shooterName = component.Shooter == null ? "unknown" : ToPrettyString(component.Shooter.Value);
+            _popup.PopupEntity("(missed)", target, PopupType.SmallCaution);
 
             _adminLogger.Add(LogType.BulletHit,
                 LogImpact.Low,
