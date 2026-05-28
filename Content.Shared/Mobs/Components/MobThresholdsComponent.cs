@@ -1,5 +1,6 @@
 using Content.Shared._Starlight.Scaling;
 using Content.Shared.Alert;
+using Content.Shared.DND14;
 using Content.Shared.FixedPoint;
 using Content.Shared.Mobs.Systems;
 using Robust.Shared.GameStates;
@@ -9,7 +10,7 @@ using Robust.Shared.Serialization;
 namespace Content.Shared.Mobs.Components;
 
 [RegisterComponent, NetworkedComponent]
-[Access(typeof(MobThresholdSystem), typeof(SharedScalingSystem))] // STARLIGHT
+[Access(typeof(MobThresholdSystem), typeof(SharedScalingSystem), typeof(Dnd14EnduranceThresholdSystem))] // STARLIGHT + DND14
 public sealed partial class MobThresholdsComponent : Component
 {
     [DataField("thresholds", required: true)]
