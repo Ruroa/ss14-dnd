@@ -1,9 +1,11 @@
 using System.Numerics;
 using Content.Shared.Damage;
+using Content.Shared.DND14;
 using Content.Shared.DoAfter;
 using Content.Shared.Hands.EntitySystems;
 using Content.Shared.Interaction;
 using Content.Shared.Inventory;
+using Content.Shared.Popups;
 using Content.Shared.Throwing;
 using Robust.Shared.Audio.Systems;
 using Robust.Shared.Containers;
@@ -13,6 +15,7 @@ using Robust.Shared.Physics;
 using Robust.Shared.Physics.Components;
 using Robust.Shared.Physics.Events;
 using Robust.Shared.Physics.Systems;
+using Robust.Shared.Random;
 using Robust.Shared.Serialization;
 using Content.Shared.Tag; // Starlight
 using Robust.Shared.Timing; // Starlight
@@ -28,6 +31,8 @@ public abstract partial class SharedProjectileSystem : EntitySystem
     [Dependency] private readonly SharedPhysicsSystem _physics = default!;
     [Dependency] private readonly SharedTransformSystem _transform = default!;
     [Dependency] private readonly SharedContainerSystem _containerSystem = default!;
+    [Dependency] private readonly SharedPopupSystem _popup = default!;
+    [Dependency] private readonly IRobustRandom _random = default!;
     [Dependency] private readonly IGameTiming _timing = default!; //Starlight -- arming time
     [Dependency] private readonly TagSystem _tag = default!; //Starlight -- arming time
 
@@ -232,7 +237,71 @@ public abstract partial class SharedProjectileSystem : EntitySystem
         || (!component.Armed && !_tag.HasAnyTag(args.OtherEntity, component.NotArmedCollideWith))) //Starlight
         {
             args.Cancelled = true;
+            return;
         }
+
+        if (!args.OtherFixture.Hard || component.ProjectileSpent)
+            return;
+
+        if (!TryDnd14Dodge(uid, component, args.OtherEntity, out var finalDodgeChance))
+            return;
+
+        component.ProjectileSpent = true;
+        Dirty(uid, component);
+        args.Cancelled = true;
+        _popup.PopupEntity("(missed)", args.OtherEntity, PopupType.SmallCaution);
+        QueueDel(uid);
+    }
+
+    private bool TryDnd14Dodge(EntityUid projectileUid, ProjectileComponent projectile, EntityUid target, out float finalDodgeChance)
+    {
+        var dodgeChance = GetDnd14DodgeChance(target);
+        var hitChance = GetDnd14HitChance(projectileUid, projectile);
+
+        finalDodgeChance = Math.Clamp(dodgeChance - hitChance, 0f, 1f);
+        return finalDodgeChance > 0f && _random.Prob(finalDodgeChance);
+    }
+
+    private float GetDnd14HitChance(EntityUid projectileUid, ProjectileComponent projectile)
+    {
+        var hitChance = GetDnd14HitChanceModifier(projectileUid);
+
+        if (projectile.Shooter != null)
+        {
+            if (TryComp<Dnd14CharacterSheetComponent>(projectile.Shooter.Value, out var shooterSheet))
+                hitChance += Dnd14AgilitySystem.GetHitChanceBonus(shooterSheet);
+
+            hitChance += GetDnd14HitChanceModifier(projectile.Shooter.Value);
+        }
+
+        if (projectile.Weapon != null)
+            hitChance += GetDnd14HitChanceModifier(projectile.Weapon.Value);
+
+        return hitChance;
+    }
+
+    private float GetDnd14DodgeChance(EntityUid target)
+    {
+        var dodgeChance = GetDnd14DodgeChanceModifier(target);
+
+        if (TryComp<Dnd14CharacterSheetComponent>(target, out var targetSheet))
+            dodgeChance += Dnd14AgilitySystem.GetDodgeChanceBonus(targetSheet);
+
+        return dodgeChance;
+    }
+
+    private float GetDnd14HitChanceModifier(EntityUid uid)
+    {
+        return TryComp<Dnd14HitChanceComponent>(uid, out var hitChance)
+            ? hitChance.Modifier
+            : 0f;
+    }
+
+    private float GetDnd14DodgeChanceModifier(EntityUid uid)
+    {
+        return TryComp<Dnd14DodgeChanceComponent>(uid, out var dodgeChance)
+            ? dodgeChance.Modifier
+            : 0f;
     }
 
     public void SetShooter(EntityUid id, ProjectileComponent component, EntityUid shooterId)
