@@ -16,19 +16,7 @@ public sealed class Dnd14AgilitySystem : EntitySystem
     public override void Initialize()
     {
         base.Initialize();
-        SubscribeLocalEvent<Dnd14CharacterSheetComponent, ComponentStartup>(OnSheetStartup);
-        SubscribeLocalEvent<Dnd14CharacterSheetComponent, MapInitEvent>(OnSheetMapInit);
         SubscribeLocalEvent<Dnd14CharacterSheetComponent, RefreshMovementSpeedModifiersEvent>(OnRefreshMovementSpeed);
-    }
-
-    private void OnSheetStartup(EntityUid uid, Dnd14CharacterSheetComponent component, ComponentStartup args)
-    {
-        RefreshAgilityModifiers(uid);
-    }
-
-    private void OnSheetMapInit(EntityUid uid, Dnd14CharacterSheetComponent component, MapInitEvent args)
-    {
-        RefreshAgilityModifiers(uid);
     }
 
     private void OnRefreshMovementSpeed(EntityUid uid, Dnd14CharacterSheetComponent component, RefreshMovementSpeedModifiersEvent args)
