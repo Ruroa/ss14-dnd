@@ -21,20 +21,11 @@ public sealed class Dnd14EnduranceThresholdSystem : EntitySystem
     {
         base.Initialize();
         SubscribeLocalEvent<Dnd14CharacterSheetComponent, ComponentStartup>(OnSheetStartup);
-        SubscribeLocalEvent<MobThresholdsComponent, ComponentStartup>(OnThresholdStartup);
     }
 
     private void OnSheetStartup(EntityUid uid, Dnd14CharacterSheetComponent component, ComponentStartup args)
     {
         ApplyEnduranceThresholds(uid, component);
-    }
-
-    private void OnThresholdStartup(EntityUid uid, MobThresholdsComponent component, ComponentStartup args)
-    {
-        if (!TryComp<Dnd14CharacterSheetComponent>(uid, out var sheet))
-            return;
-
-        ApplyEnduranceThresholds(uid, sheet, component);
     }
 
     public void ApplyEnduranceThresholds(EntityUid uid, Dnd14CharacterSheetComponent? sheet = null, MobThresholdsComponent? thresholds = null)
