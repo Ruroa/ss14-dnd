@@ -7,10 +7,12 @@ using Content.Shared.Damage;
 using Content.Shared.Damage.Components;
 using Content.Shared.Damage.Systems;
 using Content.Shared.Database;
+using Content.Shared.DND14;
 using Content.Shared.FixedPoint;
 using Content.Shared.Projectiles;
 using Robust.Shared.Physics.Events;
 using Robust.Shared.Player;
+using Robust.Shared.Random;
 using Content.Shared._Starlight.Camera; // Starlight | ES Screenshake
 
 namespace Content.Server.Projectiles;
@@ -23,6 +25,7 @@ public sealed class ProjectileSystem : SharedProjectileSystem
     [Dependency] private readonly DestructibleSystem _destructibleSystem = default!;
     [Dependency] private readonly GunSystem _guns = default!;
     [Dependency] private readonly SharedCameraRecoilSystem _sharedCameraRecoil = default!;
+    [Dependency] private readonly IRobustRandom _random = default!;
     [Dependency] private readonly ScreenshakeSystem _shake = default!; // Starlight | ES Screenshake
 
     public override void Initialize()
@@ -45,6 +48,20 @@ public sealed class ProjectileSystem : SharedProjectileSystem
         if (attemptEv.Cancelled)
         {
             SetShooter(uid, component, target);
+            return;
+        }
+
+        if (TryDodgeProjectile(target, component.Shooter, out var dodgeChance))
+        {
+            component.ProjectileSpent = true;
+
+            _adminLogger.Add(LogType.BulletHit,
+                LogImpact.Low,
+                $"Projectile {ToPrettyString(uid):projectile} shot by {ToPrettyString(component.Shooter):user} missed {ToPrettyString(target):target} due to DND14 Agility dodge ({dodgeChance:P0})");
+
+            if (component.DeleteOnCollide)
+                QueueDel(uid);
+
             return;
         }
 
@@ -102,6 +119,25 @@ public sealed class ProjectileSystem : SharedProjectileSystem
         {
             RaiseNetworkEvent(new ImpactEffectEvent(component.ImpactEffect, GetNetCoordinates(xform.Coordinates)), Filter.Pvs(xform.Coordinates, entityMan: EntityManager));
         }
+    }
+
+    private bool TryDodgeProjectile(EntityUid target, EntityUid? shooter, out float finalDodgeChance)
+    {
+        finalDodgeChance = 0f;
+
+        if (!TryComp<Dnd14CharacterSheetComponent>(target, out var targetSheet))
+            return false;
+
+        var dodgeChance = Dnd14AgilitySystem.GetDodgeChanceBonus(targetSheet);
+        if (dodgeChance <= 0f)
+            return false;
+
+        var hitChance = 0f;
+        if (shooter != null && TryComp<Dnd14CharacterSheetComponent>(shooter.Value, out var shooterSheet))
+            hitChance = Dnd14AgilitySystem.GetHitChanceBonus(shooterSheet);
+
+        finalDodgeChance = Math.Clamp(dodgeChance - hitChance, 0f, 1f);
+        return finalDodgeChance > 0f && _random.Prob(finalDodgeChance);
     }
 
     private bool TryPenetrate(Entity<ProjectileComponent> projectile, DamageSpecifier damage, FixedPoint2 damageRequired)
