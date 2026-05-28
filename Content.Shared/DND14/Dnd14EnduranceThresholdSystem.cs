@@ -57,10 +57,30 @@ public sealed class Dnd14EnduranceThresholdSystem : EntitySystem
         var crit = FixedPoint2.New(BaseCriticalThreshold + bonus);
         var death = FixedPoint2.New(BaseDeathThreshold + bonus);
 
-        _thresholds.SetMobStateThreshold(uid, crit, MobState.Critical, thresholds);
-        _thresholds.SetMobStateThreshold(uid, death, MobState.Dead, thresholds);
+        SetThreshold(thresholds, MobState.Critical, crit);
+        SetThreshold(thresholds, MobState.Dead, death);
+        Dirty(uid, thresholds);
 
         if (verifyThresholds)
             _thresholds.VerifyThresholds(uid, thresholds);
+    }
+
+    private static void SetThreshold(MobThresholdsComponent thresholds, MobState state, FixedPoint2 value)
+    {
+        FixedPoint2? existingKey = null;
+
+        foreach (var (threshold, thresholdState) in thresholds.Thresholds)
+        {
+            if (thresholdState != state)
+                continue;
+
+            existingKey = threshold;
+            break;
+        }
+
+        if (existingKey != null)
+            thresholds.Thresholds.Remove(existingKey.Value);
+
+        thresholds.Thresholds[value] = state;
     }
 }
