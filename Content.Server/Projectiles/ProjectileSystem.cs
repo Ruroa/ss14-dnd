@@ -51,14 +51,14 @@ public sealed class ProjectileSystem : SharedProjectileSystem
             return;
         }
 
-        if (TryDodgeProjectile(target, component.Shooter, out var dodgeChance))
+        if (TryDodgeProjectile(uid, component, target, out var dodgeChance))
         {
             component.ProjectileSpent = true;
             var shooterName = component.Shooter == null ? "unknown" : ToPrettyString(component.Shooter.Value);
 
             _adminLogger.Add(LogType.BulletHit,
                 LogImpact.Low,
-                $"Projectile {ToPrettyString(uid):projectile} shot by {shooterName:user} missed {ToPrettyString(target):target} due to DND14 Agility dodge ({dodgeChance:P0})");
+                $"Projectile {ToPrettyString(uid):projectile} shot by {shooterName:user} missed {ToPrettyString(target):target} due to DND14 dodge ({dodgeChance:P0})");
 
             if (component.DeleteOnCollide)
                 QueueDel(uid);
@@ -122,23 +122,55 @@ public sealed class ProjectileSystem : SharedProjectileSystem
         }
     }
 
-    private bool TryDodgeProjectile(EntityUid target, EntityUid? shooter, out float finalDodgeChance)
+    private bool TryDodgeProjectile(EntityUid projectileUid, ProjectileComponent projectile, EntityUid target, out float finalDodgeChance)
     {
-        finalDodgeChance = 0f;
-
-        if (!TryComp<Dnd14CharacterSheetComponent>(target, out var targetSheet))
-            return false;
-
-        var dodgeChance = Dnd14AgilitySystem.GetDodgeChanceBonus(targetSheet);
-        if (dodgeChance <= 0f)
-            return false;
-
-        var hitChance = 0f;
-        if (shooter != null && TryComp<Dnd14CharacterSheetComponent>(shooter.Value, out var shooterSheet))
-            hitChance = Dnd14AgilitySystem.GetHitChanceBonus(shooterSheet);
+        var dodgeChance = GetDodgeChance(target);
+        var hitChance = GetHitChance(projectileUid, projectile);
 
         finalDodgeChance = Math.Clamp(dodgeChance - hitChance, 0f, 1f);
         return finalDodgeChance > 0f && _random.Prob(finalDodgeChance);
+    }
+
+    private float GetHitChance(EntityUid projectileUid, ProjectileComponent projectile)
+    {
+        var hitChance = GetHitChanceModifier(projectileUid);
+
+        if (projectile.Shooter != null)
+        {
+            if (TryComp<Dnd14CharacterSheetComponent>(projectile.Shooter.Value, out var shooterSheet))
+                hitChance += Dnd14AgilitySystem.GetHitChanceBonus(shooterSheet);
+
+            hitChance += GetHitChanceModifier(projectile.Shooter.Value);
+        }
+
+        if (projectile.Weapon != null)
+            hitChance += GetHitChanceModifier(projectile.Weapon.Value);
+
+        return hitChance;
+    }
+
+    private float GetDodgeChance(EntityUid target)
+    {
+        var dodgeChance = GetDodgeChanceModifier(target);
+
+        if (TryComp<Dnd14CharacterSheetComponent>(target, out var targetSheet))
+            dodgeChance += Dnd14AgilitySystem.GetDodgeChanceBonus(targetSheet);
+
+        return dodgeChance;
+    }
+
+    private float GetHitChanceModifier(EntityUid uid)
+    {
+        return TryComp<Dnd14HitChanceComponent>(uid, out var hitChance)
+            ? hitChance.Modifier
+            : 0f;
+    }
+
+    private float GetDodgeChanceModifier(EntityUid uid)
+    {
+        return TryComp<Dnd14DodgeChanceComponent>(uid, out var dodgeChance)
+            ? dodgeChance.Modifier
+            : 0f;
     }
 
     private bool TryPenetrate(Entity<ProjectileComponent> projectile, DamageSpecifier damage, FixedPoint2 damageRequired)
