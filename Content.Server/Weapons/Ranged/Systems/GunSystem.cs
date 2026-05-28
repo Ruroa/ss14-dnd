@@ -138,6 +138,7 @@ public sealed partial class GunSystem : SharedGunSystem
             // pneumatic cannon doesn't shoot bullets it just throws them, ignore ammo handling
             if (throwItems && ent != null)
             {
+                ApplyDnd14HitChanceToAmmo(ent.Value, gun, user);
                 ShootOrThrow(ent.Value, mapDirection, gunVelocity, gun, user);
                 fired = true; // Starlight
                 continue;
@@ -188,6 +189,7 @@ public sealed partial class GunSystem : SharedGunSystem
                     if (ent == null)
                         break;
 
+                    ApplyDnd14HitChanceToAmmo(ent.Value, gun, user);
                     var hitscanEv = new HitscanTraceEvent
                     {
                         FromCoordinates = fromCoordinates,
@@ -217,6 +219,8 @@ public sealed partial class GunSystem : SharedGunSystem
 
         void CreateAndFireProjectiles(EntityUid ammoEnt, AmmoComponent ammoComp)
         {
+            ApplyDnd14HitChanceToAmmo(ammoEnt, gun, user);
+
             // Startlight-edit: start
             var isMechShooter = user != null && TryComp<MechPilotComponent>(user.Value, out _);
             const float MechMuzzleOffset = 0.8f;
@@ -260,6 +264,7 @@ public sealed partial class GunSystem : SharedGunSystem
                     // Startlight-edit: start
                     var spawn = isMechShooter ? SpawnFrom(angles[i]) : fromEnt;
                     var newuid = Spawn(ammoSpreadComp.Proto, spawn);
+                    ApplyDnd14HitChanceToAmmo(newuid, gun, user);
                     // Startlight-edit: end
                     ShootOrThrow(newuid, angles[i].ToVec(), gunVelocity, gun, user);
                     shotProjectiles.Add(newuid);
@@ -330,6 +335,30 @@ public sealed partial class GunSystem : SharedGunSystem
             return 1f;
 
         return Dnd14AgilitySystem.GetHandlingModifier(sheet);
+    }
+
+    private void ApplyDnd14HitChanceToAmmo(EntityUid ammoUid, EntityUid weaponUid, EntityUid? user)
+    {
+        var bonus = 0f;
+
+        if (user != null)
+        {
+            if (TryComp<Dnd14CharacterSheetComponent>(user.Value, out var sheet))
+                bonus += Dnd14AgilitySystem.GetHitChanceBonus(sheet);
+
+            if (TryComp<Dnd14HitChanceComponent>(user.Value, out var userHitChance))
+                bonus += userHitChance.Modifier;
+        }
+
+        if (TryComp<Dnd14HitChanceComponent>(weaponUid, out var weaponHitChance))
+            bonus += weaponHitChance.Modifier;
+
+        if (bonus == 0f)
+            return;
+
+        var ammoHitChance = EnsureComp<Dnd14HitChanceComponent>(ammoUid);
+        ammoHitChance.Modifier += bonus;
+        Dirty(ammoUid, ammoHitChance);
     }
 
     /// <summary>
