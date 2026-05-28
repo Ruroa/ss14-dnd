@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Content.Shared.Administration.Logs;
 using Content.Shared.Database;
+using Content.Shared.DND14;
 using Content.Shared.DoAfter;
 using Content.Shared.Doors.Components;
 using Content.Shared.Interaction;
@@ -18,6 +19,9 @@ namespace Content.Shared.Prying.Systems;
 /// </summary>
 public sealed class PryingSystem : EntitySystem
 {
+    private const float Dnd14StrengthPrySpeedPerModifier = 0.15f;
+    private const float Dnd14MinimumStrengthPryMultiplier = 0.25f;
+
     [Dependency] private readonly ISharedAdminLogManager _adminLog = default!;
     [Dependency] private readonly SharedDoAfterSystem _doAfterSystem = default!;
     [Dependency] private readonly SharedAudioSystem _audioSystem = default!;
@@ -140,7 +144,8 @@ public sealed class PryingSystem : EntitySystem
         var modEv = new GetPryTimeModifierEvent(user);
 
         RaiseLocalEvent(target, ref modEv);
-        var doAfterArgs = new DoAfterArgs(EntityManager, user, modEv.BaseTime * modEv.PryTimeModifier / toolModifier, new DoorPryDoAfterEvent(), target, target, tool)
+        var strengthModifier = GetDnd14StrengthPryTimeModifier(user, tool);
+        var doAfterArgs = new DoAfterArgs(EntityManager, user, modEv.BaseTime * modEv.PryTimeModifier * strengthModifier / toolModifier, new DoorPryDoAfterEvent(), target, target, tool)
         {
             BreakOnDamage = true,
             BreakOnMove = true,
@@ -160,6 +165,23 @@ public sealed class PryingSystem : EntitySystem
             _audioSystem.PlayPredicted(comp.useSoundOnDoafter, tool.Value, user);
         // Starlight End
         return _doAfterSystem.TryStartDoAfter(doAfterArgs, out id);
+    }
+
+    private float GetDnd14StrengthPryTimeModifier(EntityUid user, EntityUid? tool)
+    {
+        // Only bare-hand unpowered prying gets the DND14 Strength speed bonus.
+        // Real tools like crowbars already have their own tool modifier.
+        if (tool != null)
+            return 1f;
+
+        if (!TryComp<Dnd14CharacterSheetComponent>(user, out var sheet))
+            return 1f;
+
+        var modifier = Dnd14CharacterSheetComponent.Modifier(sheet.Strength);
+        if (modifier <= 0)
+            return 1f;
+
+        return MathF.Max(Dnd14MinimumStrengthPryMultiplier, 1f - modifier * Dnd14StrengthPrySpeedPerModifier);
     }
 
     private void OnDoAfter(EntityUid uid, DoorComponent door, DoorPryDoAfterEvent args)
