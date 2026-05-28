@@ -54,10 +54,11 @@ public sealed class ProjectileSystem : SharedProjectileSystem
         if (TryDodgeProjectile(target, component.Shooter, out var dodgeChance))
         {
             component.ProjectileSpent = true;
+            var shooterName = component.Shooter == null ? "unknown" : ToPrettyString(component.Shooter.Value);
 
             _adminLogger.Add(LogType.BulletHit,
                 LogImpact.Low,
-                $"Projectile {ToPrettyString(uid):projectile} shot by {ToPrettyString(component.Shooter):user} missed {ToPrettyString(target):target} due to DND14 Agility dodge ({dodgeChance:P0})");
+                $"Projectile {ToPrettyString(uid):projectile} shot by {shooterName:user} missed {ToPrettyString(target):target} due to DND14 Agility dodge ({dodgeChance:P0})");
 
             if (component.DeleteOnCollide)
                 QueueDel(uid);
