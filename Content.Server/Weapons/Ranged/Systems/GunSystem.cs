@@ -350,35 +350,38 @@ public sealed partial class GunSystem : SharedGunSystem
 
     private void ApplyDnd14HitChanceToAmmo(EntityUid ammoUid, EntityUid weaponUid, EntityUid? user)
     {
-        var bonus = 0f;
+        var finalHitChance = GetDnd14HitChanceModifier(ammoUid);
 
         if (user != null)
         {
             if (TryComp<Dnd14CharacterSheetComponent>(user.Value, out var sheet))
-                bonus += Dnd14AgilitySystem.GetHitChanceBonus(sheet);
+                finalHitChance += Dnd14AgilitySystem.GetHitChanceBonus(sheet);
 
-            if (TryComp<Dnd14HitChanceComponent>(user.Value, out var userHitChance))
-                bonus += userHitChance.Modifier;
+            finalHitChance += GetDnd14HitChanceModifier(user.Value);
         }
 
-        if (TryComp<Dnd14HitChanceComponent>(weaponUid, out var weaponHitChance))
-            bonus += weaponHitChance.Modifier;
+        finalHitChance += GetDnd14HitChanceModifier(weaponUid);
 
-        if (bonus == 0f)
-            return;
-
-        var ammoHitChance = EnsureComp<Dnd14HitChanceComponent>(ammoUid);
-        ammoHitChance.Modifier += bonus;
-        Dirty(ammoUid, ammoHitChance);
+        var projectileHitChance = EnsureComp<Dnd14ProjectileHitChanceComponent>(ammoUid);
+        projectileHitChance.HitChance = finalHitChance;
+        Dirty(ammoUid, projectileHitChance);
     }
 
     private bool TryDnd14HitscanDodge(EntityUid shotUid, EntityUid target)
     {
         var dodgeChance = GetDnd14DodgeChance(target);
-        var hitChance = GetDnd14HitChanceModifier(shotUid);
+        var hitChance = GetStoredDnd14HitChance(shotUid);
         var finalDodgeChance = Math.Clamp(dodgeChance - hitChance, 0f, 1f);
 
         return finalDodgeChance > 0f && _rand.Prob(finalDodgeChance);
+    }
+
+    private float GetStoredDnd14HitChance(EntityUid uid)
+    {
+        if (TryComp<Dnd14ProjectileHitChanceComponent>(uid, out var projectileHitChance))
+            return projectileHitChance.HitChance;
+
+        return GetDnd14HitChanceModifier(uid);
     }
 
     private float GetDnd14DodgeChance(EntityUid target)
