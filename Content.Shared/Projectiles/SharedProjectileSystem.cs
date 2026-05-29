@@ -243,9 +243,10 @@ public abstract partial class SharedProjectileSystem : EntitySystem
         if (!args.OtherFixture.Hard || component.ProjectileSpent)
             return;
 
-        if (!TryDnd14Dodge(uid, args.OtherEntity, out _))
+        if (!TryDnd14Dodge(uid, component, args.OtherEntity, out var finalDodgeChance, out var hitChance, out var dodgeChance))
             return;
 
+        Log.Info($"DND14 projectile miss: projectile={ToPrettyString(uid)} target={ToPrettyString(args.OtherEntity)} hit={hitChance:P0} dodge={dodgeChance:P0} finalDodge={finalDodgeChance:P0}");
         component.ProjectileSpent = true;
         Dirty(uid, component);
         args.Cancelled = true;
@@ -253,23 +254,40 @@ public abstract partial class SharedProjectileSystem : EntitySystem
         QueueDel(uid);
     }
 
-    private bool TryDnd14Dodge(EntityUid projectileUid, EntityUid target, out float finalDodgeChance)
+    private bool TryDnd14Dodge(EntityUid projectileUid, ProjectileComponent projectile, EntityUid target, out float finalDodgeChance, out float hitChance, out float dodgeChance)
     {
-        var dodgeChance = GetDnd14DodgeChance(target);
-        var hitChance = GetStoredProjectileHitChance(projectileUid);
+        dodgeChance = GetDnd14DodgeChance(target);
+        hitChance = GetStoredProjectileHitChance(projectileUid, projectile);
 
         finalDodgeChance = Math.Clamp(dodgeChance - hitChance, 0f, 1f);
+        Log.Info($"DND14 projectile check: projectile={ToPrettyString(projectileUid)} target={ToPrettyString(target)} hit={hitChance:P0} dodge={dodgeChance:P0} finalDodge={finalDodgeChance:P0}");
         return finalDodgeChance > 0f && _random.Prob(finalDodgeChance);
     }
 
-    private float GetStoredProjectileHitChance(EntityUid projectileUid)
+    private float GetStoredProjectileHitChance(EntityUid projectileUid, ProjectileComponent projectile)
     {
         if (TryComp<Dnd14ProjectileHitChanceComponent>(projectileUid, out var projectileHitChance))
             return projectileHitChance.HitChance;
 
-        return TryComp<Dnd14HitChanceComponent>(projectileUid, out var hitChance)
-            ? hitChance.Modifier
-            : 0f;
+        var hitChance = GetDnd14HitChanceModifier(projectileUid);
+
+        if (projectile.Shooter != null)
+            hitChance += GetDnd14HitChanceFromEntity(projectile.Shooter.Value);
+
+        if (projectile.Weapon != null)
+            hitChance += GetDnd14HitChanceModifier(projectile.Weapon.Value);
+
+        return hitChance;
+    }
+
+    private float GetDnd14HitChanceFromEntity(EntityUid uid)
+    {
+        var hitChance = GetDnd14HitChanceModifier(uid);
+
+        if (TryComp<Dnd14CharacterSheetComponent>(uid, out var sheet))
+            hitChance += Dnd14AgilitySystem.GetHitChanceBonus(sheet);
+
+        return hitChance;
     }
 
     private float GetDnd14DodgeChance(EntityUid target)
@@ -280,6 +298,13 @@ public abstract partial class SharedProjectileSystem : EntitySystem
             dodgeChance += Dnd14AgilitySystem.GetDodgeChanceBonus(targetSheet);
 
         return dodgeChance;
+    }
+
+    private float GetDnd14HitChanceModifier(EntityUid uid)
+    {
+        return TryComp<Dnd14HitChanceComponent>(uid, out var hitChance)
+            ? hitChance.Modifier
+            : 0f;
     }
 
     private float GetDnd14DodgeChanceModifier(EntityUid uid)
