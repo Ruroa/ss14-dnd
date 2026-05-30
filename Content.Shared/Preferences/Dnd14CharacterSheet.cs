@@ -13,6 +13,15 @@ public sealed partial class Dnd14CharacterSheet
     public const int RequiredTrainedSkills = 4;
     public const int SkillPointBudget = 4;
 
+    public const string DefaultClassId = "None";
+    public const string MedicClassId = "Medic";
+
+    public static readonly HashSet<string> ValidClassIds = new()
+    {
+        DefaultClassId,
+        MedicClassId,
+    };
+
     public static readonly HashSet<string> ValidSkillIds = new()
     {
         "Perception",
@@ -38,6 +47,9 @@ public sealed partial class Dnd14CharacterSheet
 
     [DataField]
     public int Experience { get; set; }
+
+    [DataField]
+    public string ClassId { get; set; } = DefaultClassId;
 
     [DataField]
     public string Background { get; set; } = string.Empty;
@@ -79,6 +91,7 @@ public sealed partial class Dnd14CharacterSheet
             Finalized = Finalized,
             Level = Level,
             Experience = Experience,
+            ClassId = ClassId,
             Background = Background,
             Notes = Notes,
             Strength = Strength,
@@ -107,6 +120,7 @@ public sealed partial class Dnd14CharacterSheet
         return Finalized == other.Finalized
                && Level == other.Level
                && Experience == other.Experience
+               && ClassId == other.ClassId
                && Background == other.Background
                && Notes == other.Notes
                && Strength == other.Strength
@@ -123,6 +137,7 @@ public sealed partial class Dnd14CharacterSheet
     {
         Level = Math.Max(1, Level);
         Experience = Math.Max(0, Experience);
+        ClassId = ValidClassIds.Contains(ClassId) ? ClassId : DefaultClassId;
         Background ??= string.Empty;
         Notes ??= string.Empty;
         Strength = Math.Clamp(Strength, StartingStat, CreationMaxStat);
