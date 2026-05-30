@@ -53,6 +53,7 @@ public sealed partial class HumanoidCharacterProfile
         return sheet.Finalized
                || sheet.Level != 1
                || sheet.Experience != 0
+               || sheet.ClassId != Dnd14CharacterSheet.DefaultClassId
                || !string.IsNullOrWhiteSpace(sheet.Background)
                || !string.IsNullOrWhiteSpace(sheet.Notes)
                || sheet.Strength != Dnd14CharacterSheet.StartingStat
@@ -138,6 +139,7 @@ public sealed partial class HumanoidCharacterProfile
         AppendPackedPart(builder, sheet.Finalized ? "1" : "0");
         AppendPackedPart(builder, sheet.Level.ToString());
         AppendPackedPart(builder, sheet.Experience.ToString());
+        AppendPackedPart(builder, sheet.ClassId);
         AppendPackedPart(builder, PackText(sheet.Background));
         AppendPackedPart(builder, PackText(sheet.Notes));
         AppendPackedPart(builder, sheet.Strength.ToString());
@@ -165,23 +167,25 @@ public sealed partial class HumanoidCharacterProfile
         if (parts.Length < 13)
             return Dnd14CharacterSheet.Default();
 
+        var offset = parts.Length >= 14 ? 1 : 0;
         var sheet = new Dnd14CharacterSheet
         {
             Finalized = parts[0] == "1",
             Level = int.TryParse(parts[1], out var level) ? level : 1,
             Experience = int.TryParse(parts[2], out var experience) ? experience : 0,
-            Background = UnpackText(parts[3]),
-            Notes = UnpackText(parts[4]),
-            Strength = int.TryParse(parts[5], out var strength) ? strength : Dnd14CharacterSheet.StartingStat,
-            Agility = int.TryParse(parts[6], out var agility) ? agility : Dnd14CharacterSheet.StartingStat,
-            Endurance = int.TryParse(parts[7], out var endurance) ? endurance : Dnd14CharacterSheet.StartingStat,
-            Intelligence = int.TryParse(parts[8], out var intelligence) ? intelligence : Dnd14CharacterSheet.StartingStat,
-            Wisdom = int.TryParse(parts[9], out var wisdom) ? wisdom : Dnd14CharacterSheet.StartingStat,
-            Social = int.TryParse(parts[10], out var social) ? social : Dnd14CharacterSheet.StartingStat,
-            TrainedSkills = parts[11]
+            ClassId = offset == 1 ? parts[3] : Dnd14CharacterSheet.DefaultClassId,
+            Background = UnpackText(parts[3 + offset]),
+            Notes = UnpackText(parts[4 + offset]),
+            Strength = int.TryParse(parts[5 + offset], out var strength) ? strength : Dnd14CharacterSheet.StartingStat,
+            Agility = int.TryParse(parts[6 + offset], out var agility) ? agility : Dnd14CharacterSheet.StartingStat,
+            Endurance = int.TryParse(parts[7 + offset], out var endurance) ? endurance : Dnd14CharacterSheet.StartingStat,
+            Intelligence = int.TryParse(parts[8 + offset], out var intelligence) ? intelligence : Dnd14CharacterSheet.StartingStat,
+            Wisdom = int.TryParse(parts[9 + offset], out var wisdom) ? wisdom : Dnd14CharacterSheet.StartingStat,
+            Social = int.TryParse(parts[10 + offset], out var social) ? social : Dnd14CharacterSheet.StartingStat,
+            TrainedSkills = parts[11 + offset]
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToHashSet(),
-            MasteredSkills = parts[12]
+            MasteredSkills = parts[12 + offset]
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToHashSet(),
         };
