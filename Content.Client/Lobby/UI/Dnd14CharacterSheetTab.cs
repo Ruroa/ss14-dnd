@@ -23,6 +23,8 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
     private readonly Label _statusLabel;
     private readonly Label _remainingPointsLabel;
     private readonly Label _finalizeRequirementsLabel;
+    private readonly OptionButton _classButton;
+    private readonly Label _classDescriptionLabel;
     private readonly LineEdit _backgroundEdit;
     private readonly TextEdit _notesEdit;
     private readonly Button _finalizeButton;
@@ -33,6 +35,13 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
     private bool _finalized;
     private bool _loading;
     private int? _loadedSlot;
+    private string _selectedClass = Dnd14CharacterSheet.DefaultClassId;
+
+    private readonly (string Id, string Name, string Description)[] _classDefinitions =
+    {
+        (Dnd14CharacterSheet.DefaultClassId, "No Class", "No DND14 class selected."),
+        (Dnd14CharacterSheet.MedicClassId, "Medic", "Empty placeholder class. Abilities will be added later."),
+    };
 
     private readonly (string Id, string Name)[] _statDefinitions =
     {
@@ -91,7 +100,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
         root.AddChild(new RichTextLabel
         {
-            Text = "[bold]Character Sheet[/bold]\n[color=gray]Spend 8 core stat points, spend 4 skill points, add a background, then finalize to lock the sheet. Proficiency costs 1 point and gives +2. Mastery costs 2 points and gives +4.[/color]",
+            Text = "[bold]Character Sheet[/bold]\n[color=gray]Spend 8 core stat points, spend 4 skill points, select a class, add a background, then finalize to lock the sheet. Proficiency costs 1 point and gives +2. Mastery costs 2 points and gives +4.[/color]",
         });
 
         var header = new BoxContainer
@@ -122,6 +131,25 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         topGrid.AddChild(new Label { Text = "1" });
         topGrid.AddChild(new Label { Text = "XP" });
         topGrid.AddChild(new Label { Text = "0 / 100" });
+        topGrid.AddChild(new Label { Text = "Class" });
+        _classButton = new OptionButton { MinSize = new Vector2(220, 0) };
+        for (var i = 0; i < _classDefinitions.Length; i++)
+            _classButton.AddItem(_classDefinitions[i].Name, i);
+
+        _classButton.OnItemSelected += args =>
+        {
+            if (_finalized)
+                return;
+
+            _classButton.SelectId(args.Id);
+            _selectedClass = _classDefinitions[args.Id].Id;
+            Refresh();
+            SaveCurrentSheet();
+        };
+        topGrid.AddChild(_classButton);
+        topGrid.AddChild(new Label { Text = "Class Info" });
+        _classDescriptionLabel = new Label();
+        topGrid.AddChild(_classDescriptionLabel);
         topGrid.AddChild(new Label { Text = "Background" });
         _backgroundEdit = new LineEdit
         {
@@ -254,6 +282,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         sheet.EnsureValid();
 
         _finalized = sheet.Finalized;
+        _selectedClass = sheet.ClassId;
         _backgroundEdit.Text = sheet.Background;
         _notesEdit.TextRope = new Rope.Leaf(sheet.Notes);
 
@@ -279,6 +308,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
         var sheet = new Dnd14CharacterSheet
         {
             Finalized = _finalized,
+            ClassId = _selectedClass,
             Background = _backgroundEdit.Text.Trim(),
             Notes = Rope.Collapse(_notesEdit.TextRope).Trim(),
             Strength = _stats["Strength"].Value,
@@ -387,6 +417,7 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
     {
         return RemainingPoints() == 0
                && SkillPointsSpent() == SkillPointBudget
+               && _selectedClass != Dnd14CharacterSheet.DefaultClassId
                && !string.IsNullOrWhiteSpace(_backgroundEdit.Text);
     }
 
@@ -400,6 +431,8 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
             missing.Add($"spend all stat points ({RemainingPoints()} left)");
         if (SkillPointsSpent() != SkillPointBudget)
             missing.Add($"spend {SkillPointBudget} skill points ({SkillPointsSpent()}/{SkillPointBudget})");
+        if (_selectedClass == Dnd14CharacterSheet.DefaultClassId)
+            missing.Add("select a class");
         if (string.IsNullOrWhiteSpace(_backgroundEdit.Text))
             missing.Add("fill Background");
 
@@ -435,6 +468,10 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
 
         var remaining = RemainingPoints();
         var skillPoints = SkillPointsSpent();
+        var classIndex = Math.Max(0, Array.FindIndex(_classDefinitions, definition => definition.Id == _selectedClass));
+        _classButton.SelectId(classIndex);
+        _classButton.Disabled = _finalized;
+        _classDescriptionLabel.Text = _classDefinitions[classIndex].Description;
         _statusLabel.Text = _finalized ? "Status: Finalized" : "Status: Draft";
         _remainingPointsLabel.Text = $"Points: {remaining} | Skills: {skillPoints}/{SkillPointBudget}";
         _finalizeRequirementsLabel.Text = GetFinalizeRequirementText();
