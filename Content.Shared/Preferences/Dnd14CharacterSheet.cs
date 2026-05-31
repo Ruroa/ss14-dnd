@@ -19,8 +19,6 @@ public sealed partial class Dnd14CharacterSheet
     public const string SpecialistClassId = "Specialist";
     public const string EngineerClassId = "Engineer";
     public const string ResearcherClassId = "Researcher";
-    public const string HazardSpecialistClassId = "HazardSpecialist";
-    public const string LogisticsTechnicianClassId = "LogisticsTechnician";
 
     public static readonly HashSet<string> ValidClassIds = new()
     {
@@ -30,8 +28,6 @@ public sealed partial class Dnd14CharacterSheet
         SpecialistClassId,
         EngineerClassId,
         ResearcherClassId,
-        HazardSpecialistClassId,
-        LogisticsTechnicianClassId,
     };
 
     public static readonly HashSet<string> ValidSkillIds = new()
