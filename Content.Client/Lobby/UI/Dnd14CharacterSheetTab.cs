@@ -40,7 +40,13 @@ public sealed class Dnd14CharacterSheetTab : BoxContainer
     private readonly (string Id, string Name, string Description)[] _classDefinitions =
     {
         (Dnd14CharacterSheet.DefaultClassId, "No Class", "No DND14 class selected."),
-        (Dnd14CharacterSheet.MedicClassId, "Medic", "Empty placeholder class. Abilities will be added later."),
+        (Dnd14CharacterSheet.MedicClassId, "Medic", "Emergency medical responder. Empty placeholder; abilities will be added later."),
+        (Dnd14CharacterSheet.OperativeClassId, "Operative", "Heavy combat field operative. Empty placeholder; abilities will be added later."),
+        (Dnd14CharacterSheet.SpecialistClassId, "Specialist", "Light recon and mobility specialist. Empty placeholder; abilities will be added later."),
+        (Dnd14CharacterSheet.EngineerClassId, "Engineer", "Field repair and deployable equipment expert. Empty placeholder; abilities will be added later."),
+        (Dnd14CharacterSheet.ResearcherClassId, "Researcher", "Science, anomaly, and unknown hazard analyst. Empty placeholder; abilities will be added later."),
+        (Dnd14CharacterSheet.HazardSpecialistClassId, "Hazard Specialist", "Radiation, toxin, atmos, and biohazard response specialist. Empty placeholder; abilities will be added later."),
+        (Dnd14CharacterSheet.LogisticsTechnicianClassId, "Logistics Technician", "Supplies, equipment, batteries, and field resource support. Empty placeholder; abilities will be added later."),
     };
 
     private readonly (string Id, string Name)[] _statDefinitions =
